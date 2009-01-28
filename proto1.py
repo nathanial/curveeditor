@@ -1,13 +1,6 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from helpers import DraggableLine
+from editor import Plotter
+from helpers import read_lasfile
 
-xs = np.arange(0., 10., 1.)
-ys = np.arange(0., 10., 1.)
-
-line, = plt.plot(xs, ys, "b-", picker=5)
-dline = DraggableLine(line)
-dline.connect()
-
-plt.show()
-
+lf = read_lasfile("test2.las")
+pl = Plotter(lf.gamma_list, lf.depth_list)
+pl.show()

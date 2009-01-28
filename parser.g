@@ -11,7 +11,7 @@ parser LASParser:
     token FLOAT: '-?[0-9]+[.][0-9]+'
     token EMPTY: ""
 
-    rule las_file: version_header curve_header las_data {{ return LasFile(version_header, curve_header, LasData.split(las_data, curve_header.descriptors)) }}
+    rule las_file: version_header curve_header las_data {{ return LasFile(version_header, curve_header, LasData.split(las_data, curve_header)) }}
     
     rule version_header: end_line*
     	 	        "~V" STRING (" " STRING)* end_line

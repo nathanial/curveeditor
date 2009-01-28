@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-class DraggableLine(object):
+class DraggableLine:
     def __init__(self, line):
         self.line = line
         self.press = None
@@ -39,18 +39,3 @@ class DraggableLine(object):
         self.line.figure.canvas.mpl_disconnect(self.cidpress)
         self.line.figure.canvas.mpl_disconnect(self.cidrelease)
         self.line.figure.canvas.mpl_disconnect(self.cidmotion)
-
-class Plotter(object): 
-    def __init__(self, xs, ys):
-        self.xs = xs
-        self.ys = ys
-        
-    def show(self):
-        line, = plt.plot(self.xs, self.ys, "b-", picker=5)
-        dline = DraggableLine(line)
-        dline.connect()
-        plt.show()
-
-
-
-        

@@ -65,17 +65,16 @@ def test_version_header():
     assert version_header == VersionHeader(2.0, False)
     
 def test_curve_header():
+    global curve_header
     curve_header = parser.parse("curve_header", curve_header_text)
     assert len(curve_header.descriptors) == 6
-    global descriptors
-    descriptors = curve_header.descriptors
     
 #    assert curve_header.mnemonics == ["DEPT", "NetGross", "Facies", 
 #                                     "Porosity", "Gamma", "DEPTH"]
 
 def test_las_data():
    data = parser.parse("las_data", las_data_text)
-   las_datas = LasData.split(data,descriptors)
+   las_datas = LasData.split(data,curve_header)
 
 def test_las_file():
     las_text = ""
@@ -84,6 +83,7 @@ def test_las_file():
             las_text += line
     
     las_file = parser.parse("las_file", las_text)
+
     
 
 test_descriptors()

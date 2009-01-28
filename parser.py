@@ -35,7 +35,7 @@ class LASParser(runtime.Parser):
         version_header = self.version_header(_context)
         curve_header = self.curve_header(_context)
         las_data = self.las_data(_context)
-        return LasFile(version_header, curve_header, LasData.split(las_data, curve_header.descriptors))
+        return LasFile(version_header, curve_header, LasData.split(las_data, curve_header))
 
     def version_header(self, _parent=None):
         _context = self.Context(_parent, self._scanner, 'version_header', [])
