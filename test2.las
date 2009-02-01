@@ -1,3 +1,4 @@
+#BLAH BLAH BLAH
 ~Version information
 VERS.   2.0:
 WRAP.   NO:
@@ -8,6 +9,8 @@ Facies .                  : Facies
 Porosity .m3/m3           : Porosity
 Gamma .gAPI               : Gamma
 DEPTH .m                  : trend
+
+# FOI FO FO
 ~Ascii
  1501.6290000 0.0000000000 0.0000000000 0.2674280107 78.869453430 1501.6290283
  1502.1290000 0.0000000000 0.0000000000 0.2560760081 78.008300781 1502.1290283

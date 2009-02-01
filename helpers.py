@@ -1,6 +1,5 @@
 from __future__ import with_statement
 import parser
-import las
 
 def read_lasfile(path):
     las_text = ""

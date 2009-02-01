@@ -1,6 +1,24 @@
 from __future__ import with_statement
 import parser
-from las import Descriptor, VersionHeader, CurveHeader, LasData
+from las.headers import *
+from las.file import *
+
+well_header_text = """
+~Well
+STRT .m      1499.8790000 :
+STOP .m      2416.3790000 :
+STEP .m     0.00000000 :
+NULL .        -999.250000 :
+COMP.           : COMPANY
+WELL.  A10   : WELL
+FLD.            : FIELD
+LOC.            : LOCATION
+SRVC.           : SERVICE COMPANY
+DATE.  Monday, January 26 2009 14:04:02   : DATE
+PROV.           : PROVINCE
+UWI.      : UNIQUE WELL ID
+API.            : API NUMBER
+"""
 
 curve_header_text = """
 ~Curve
@@ -19,7 +37,9 @@ descriptors_text = [
     "Facies .                  : Facies\n",
     "Porosity .m3/m3           : Porosity\n",
     "Gamma .gAPI               : Gamma\n",
-    "DEPTH .m                  : trend\n"
+    "DEPTH .m                  : trend\n",
+    "STRT .m      1499.8790000 :",
+    "STOP .m      2416.3790000 :",
     ]
 
 version_header_text = """
@@ -44,7 +64,9 @@ las_data_text = """
 
 def test_descriptors():
     def parse_from(n):
-        return parser.parse("descriptor", descriptors_text[n])
+        descriptor = parser.parse("descriptor", descriptors_text[n])
+        print "descriptor = %s " % descriptor
+        return descriptor
 
     dept = parse_from(0)
     net_gross = parse_from(1)
@@ -52,17 +74,25 @@ def test_descriptors():
     porosity = parse_from(3)
     gamma = parse_from(4)
     depth = parse_from(5)
+    start = parse_from(6)
+    stop = parse_from(7)
     
-    assert dept == Descriptor("DEPT", "m", "DEPTH")
-    assert net_gross == Descriptor("NetGross", None, "NetGross")
-    assert facies == Descriptor("Facies", None, "Facies")
-    assert porosity == Descriptor("Porosity", "m3/m3", "Porosity")
-    assert gamma == Descriptor("Gamma", "gAPI", "Gamma")
-    assert depth == Descriptor("DEPTH", "m", "trend")
+    assert dept == Descriptor(mnemonic="DEPT",unit="m",description="DEPTH")
+    assert net_gross == Descriptor(mnemonic="NetGross", description="NetGross")
+    assert facies == Descriptor(mnemonic="Facies", description="Facies")
+    assert porosity == Descriptor(mnemonic="Porosity", unit="m3/m3", description="Porosity")
+    assert gamma == Descriptor(mnemonic="Gamma", unit="gAPI", description="Gamma")
+    assert depth == Descriptor(mnemonic="DEPTH", unit="m", description="trend")
+    assert start == Descriptor(mnemonic="STRT", unit="m", data="1499.8790000")
+    assert stop == Descriptor(mnemonic="STOP", unit="m", data="2416.3790000")
 
 def test_version_header():
     version_header = parser.parse("version_header", version_header_text)
     assert version_header == VersionHeader(2.0, False)
+
+def test_well_header():
+    well_header = parser.parse("well_header", well_header_text)
+    print well_header
     
 def test_curve_header():
     global curve_header
@@ -74,11 +104,11 @@ def test_curve_header():
 
 def test_las_data():
    data = parser.parse("las_data", las_data_text)
-   las_datas = LasData.split(data,curve_header)
+   las_datas = LasData.split(data,curve_header)   
 
 def test_las_file():
     las_text = ""
-    with open("test2.las") as f:
+    with open("test.las") as f:
         for line in f:
             las_text += line
     
@@ -90,6 +120,7 @@ test_descriptors()
 test_version_header()
 test_curve_header()
 test_las_data()
+test_well_header()
 test_las_file()
 
 print "success"

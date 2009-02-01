@@ -1,9 +1,12 @@
 import re
+import new
 
 class LasFile(object):
-    def __init__(self, version_header, curve_header, las_data):
+    def __init__(self, version_header, well_header, curve_header, parameter_header, las_data):
         self.version_header = version_header
+        self.well_header = well_header
         self.curve_header = curve_header
+        self.parameter_header = parameter_header
         self.las_data = las_data
 
     def __getattr__(self, attr):
@@ -21,60 +24,35 @@ class LasFile(object):
             else:
                 raise AttributeError
 
+class DefaultProperty(property):
+    def __init__(self, default_value):
+        super(DefaultProperty, self).__init__(fget = self.get, fset = self.set)
+        self.val = default_value
+        
+    def get(self, obj):
+        return self.val
 
-class VersionHeader(object):
-    def __init__(self, version, wrap): 
-        self.version = version
-        if isinstance(wrap, str):
-            if wrap.strip() == "NO":
-                self.wrap = False
-            elif wrap.strip() == "YES":
-                self.wrap = True
-            else:
-                raise "Unknown value for wrap = %s " % wrap
+    def set(self, obj, nval):
+        if isinstance(nval, str) and nval.strip() == "":
+            self.val = None
         else:
-            self.wrap = wrap
-            
-    def __str__(self):
-        return "version = %s, wrap = %s" % (self.version, self.wrap)
-
-    def __repr__(self):
-        return self.__str__()
-
-    def __eq__(self,that):
-        if not isinstance(that, VersionHeader): return False
-        return (self.version == that.version and
-                self.wrap == that.wrap)
-
-class CurveHeader(object):
-    def __init__(self, descriptors):
-        self.descriptors = descriptors
-
-    def descriptor_mnemonics(self):
-        return map(lambda d: d.mnemonic.lower(), self.descriptors)
-
-    def __str__(self):
-        return "descriptors = %s" % self.descriptors
-
-    def __repr__(self): 
-        return self.__str__()
-
-    def __eq__(self,that):
-        if not isinstance(that, CurveHeader): return False
-        return (self.descriptors == that.descriptors)
-
+            self.val = nval
+        
 class Descriptor(object):
-    def __init__(self, mnemonic, unit, description):
+    mnemonic = DefaultProperty(None)
+    unit = DefaultProperty(None)
+    data = DefaultProperty(None)
+    description = DefaultProperty(None)
+
+    def __init__(self, mnemonic, unit = None, data = None, description = None):
         self.mnemonic = mnemonic
-        if isinstance(unit,str) and unit.strip() == "":
-            self.unit = None
-        else:
-            self.unit = unit
+        self.unit = unit
+        self.data = data
         self.description = description
 
     def __str__(self):
-        return "mnemonic = %s, unit = %s, description = %s" % (
-            self.mnemonic, self.unit, self.description)
+        return "mnemonic = %s, unit = %s, data = %s, description = %s" % (
+            self.mnemonic, self.unit, self.data, self.description)
 
     def __repr__(self): return self.__str__()
 
@@ -82,8 +60,9 @@ class Descriptor(object):
         if not isinstance(that, Descriptor): return False
         return (self.mnemonic == that.mnemonic and
                 self.unit == that.unit and
+                self.data == that.data and
                 self.description == that.description)
-    
+
 
 class LasData(object): 
        
@@ -125,3 +104,6 @@ class LasData(object):
         return rows        
         
         
+class HasDescriptors(object):
+    def descriptor_mnemonics(self):
+        return map(lambda d: d.mnemonic.lower(), self.descriptors)
