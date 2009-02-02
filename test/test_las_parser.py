@@ -28,7 +28,6 @@ Facies .                  : Facies
 Porosity .m3/m3           : Porosity
 Gamma .gAPI               : Gamma
 DEPTH .m                  : trend
-
 """
 
 descriptors_text = [

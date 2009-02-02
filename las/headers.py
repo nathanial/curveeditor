@@ -31,8 +31,8 @@ class VersionHeader(object):
 
     def to_las(self):
         return ("~Version information\n" +
-                "VERS. %s\n" % self.version + 
-                "WRAP. %s\n" % self.wrap_string())
+                "VERS. %s:\n" % self.version + 
+                "WRAP. %s:\n" % self.wrap_string())
         
 
 class HeaderWithDescriptors(HasDescriptors):
@@ -59,8 +59,8 @@ class HeaderWithDescriptors(HasDescriptors):
                 raise AttributeError
 
     def to_las(self):
-        return (self.identifier_string + "\n" + 
-                map(lambda x: x.to_las(), self.descriptors))
+        return (self.identifier + "\n" + 
+                "\n".join(map(lambda x: x.to_las(), self.descriptors))) + "\n"
 
 def descriptor_header(name, identifier):
     class Anon(HeaderWithDescriptors):

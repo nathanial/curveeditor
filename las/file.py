@@ -19,6 +19,14 @@ class LasFile(object):
         self.parameter_header = parameter_header
         self.las_data = las_data
 
+    def __eq__(self,that):
+        if not isinstance(that, LasFile): return False
+        return (self.version_header == that.version_header and
+                self.well_header == that.well_header and
+                self.curve_header == that.curve_header and 
+                self.parameter_header == that.parameter_header and
+                self.las_data == that.las_data)
+
     def __getattr__(self, attr):
         if attr in self.__dict__: 
             return self.__dict__[attr]
@@ -38,7 +46,8 @@ class LasFile(object):
                 self.well_header.to_las() + 
                 self.curve_header.to_las() +
                 self.parameter_header.to_las() +
-                self.las_data.to_las())
+                "~Ascii\n" + 
+                "\n".join(map(lambda ld: ld.to_las(), self.las_data)))
 
 class Descriptor(object):
     def __init__(self, mnemonic, unit = None, data = None, description = None):
@@ -61,7 +70,10 @@ class Descriptor(object):
                 self.description == that.description)
 
     def to_las(self):
-        return " ".join([self.mnemonic, self.unit, self.data, self.description]) + "\n"
+        return (self.mnemonic + "." + 
+                (self.unit or " ") + " " + 
+                (self.data or " ") + " : " + 
+                (self.description or " "))
 
 
 class LasData(object):        
@@ -74,6 +86,10 @@ class LasData(object):
     
     def __str__(self):
         return str(self.data)
+
+    def __eq__(self,that):
+        if not isinstance(that, LasData): return False
+        return self.data == that.data
 
     def __getattr__(self,attr):
         if attr in self.__dict__: 
@@ -103,10 +119,7 @@ class LasData(object):
         return rows        
 
     def to_las(self):
-        rows = LasData.split_into_rows(self.data, len(self.curve_header.descriptors))
-        data_string = "\n".join(map(lambda r: " ".join(r)))
-        return ("~Ascii\n" + data_string)
-                
+        return " ".join(map(lambda x: str(x), self.data))
         
         
 class HasDescriptors(object):
