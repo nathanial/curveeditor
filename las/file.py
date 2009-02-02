@@ -1,6 +1,16 @@
 import re
 import new
 
+def preprocess_str(obj):
+    if isinstance(obj, str):
+        obj = obj.strip()
+        if obj == "":
+            return None
+        else:
+            return obj
+    else:
+        return obj
+
 class LasFile(object):
     def __init__(self, version_header, well_header, curve_header, parameter_header, las_data):
         self.version_header = version_header
@@ -15,7 +25,6 @@ class LasFile(object):
         else:
             m = re.match("([a-z]+)(_list)?", attr)
             desc, dtype = m.groups()
-            print self.curve_header.descriptor_mnemonics()
             if desc in self.curve_header.descriptor_mnemonics() and dtype == "_list":
                 acc = []
                 for data in self.las_data:
@@ -24,31 +33,19 @@ class LasFile(object):
             else:
                 raise AttributeError
 
-class DefaultProperty(property):
-    def __init__(self, default_value):
-        super(DefaultProperty, self).__init__(fget = self.get, fset = self.set)
-        self.val = default_value
-        
-    def get(self, obj):
-        return self.val
+    def to_las(self):
+        return (self.version_header.to_las() +
+                self.well_header.to_las() + 
+                self.curve_header.to_las() +
+                self.parameter_header.to_las() +
+                self.las_data.to_las())
 
-    def set(self, obj, nval):
-        if isinstance(nval, str) and nval.strip() == "":
-            self.val = None
-        else:
-            self.val = nval
-        
 class Descriptor(object):
-    mnemonic = DefaultProperty(None)
-    unit = DefaultProperty(None)
-    data = DefaultProperty(None)
-    description = DefaultProperty(None)
-
     def __init__(self, mnemonic, unit = None, data = None, description = None):
-        self.mnemonic = mnemonic
-        self.unit = unit
-        self.data = data
-        self.description = description
+        self.mnemonic = preprocess_str(mnemonic)
+        self.unit = preprocess_str(unit)
+        self.data = preprocess_str(data)
+        self.description = preprocess_str(description)
 
     def __str__(self):
         return "mnemonic = %s, unit = %s, data = %s, description = %s" % (
@@ -63,9 +60,11 @@ class Descriptor(object):
                 self.data == that.data and
                 self.description == that.description)
 
+    def to_las(self):
+        return " ".join([self.mnemonic, self.unit, self.data, self.description]) + "\n"
 
-class LasData(object): 
-       
+
+class LasData(object):        
     def __init__(self, data, curve_header):
         self.data = data
         self.curve_header = curve_header
@@ -102,6 +101,12 @@ class LasData(object):
             rows.append(data[cursor:(cursor + row_len)])
             cursor += row_len
         return rows        
+
+    def to_las(self):
+        rows = LasData.split_into_rows(self.data, len(self.curve_header.descriptors))
+        data_string = "\n".join(map(lambda r: " ".join(r)))
+        return ("~Ascii\n" + data_string)
+                
         
         
 class HasDescriptors(object):

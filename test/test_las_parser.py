@@ -92,6 +92,8 @@ def test_version_header():
 
 def test_well_header():
     well_header = parser.parse("well_header", well_header_text)
+    assert well_header.date.data == "Monday, January 26 2009 14:04:02"
+    assert well_header.date.description == "DATE"
     print well_header
     
 def test_curve_header():

@@ -6,8 +6,8 @@ parser LASParser:
     ignore: ' '
     ignore: "#[^\n]*\n"
     token MNEMONIC: "\\w+"
-    token UNIT: "[^\n:. ]*"
-    token DESCRIPTION: "[^\n]*"
+    token UNIT: "[.][^\n:. ]*"
+    token DESCRIPTION: ":[^\n:]*"
     token STRING: ".*"
     token LINE: "[^\n]*"
     token DELIMITER_FREE_STRING: "[^\n:.]*"
@@ -15,7 +15,7 @@ parser LASParser:
     token NUM: '-?[0-9]+'
     token FLOAT: '-?[0-9]+[.][0-9]+'
     token EMPTY: ""
-    token DATA: "[^\n:]*"
+    token DATA: "[^\n]*(?= :[^\n:]*)"
 
     rule las_file: version_header well_header curve_header parameter_header las_data 
     	 	   {{ return LasFile(version_header, well_header, curve_header, parameter_header, LasData.split(las_data, curve_header)) }}
@@ -42,8 +42,8 @@ parser LASParser:
     	 	       (descriptor {{ descriptors.append(descriptor) }} end_line)*
 		       {{ return CurveHeader(descriptors) }}
    
-    rule descriptor: MNEMONIC "\." UNIT DATA ":" DESCRIPTION 
-    	 	     {{ return Descriptor(MNEMONIC, UNIT, DATA, DESCRIPTION.strip()) }}
+    rule descriptor: MNEMONIC UNIT DATA DESCRIPTION 
+    	 	     {{ return Descriptor(MNEMONIC, UNIT[1:], DATA, DESCRIPTION[1:].strip()) }}
 
     rule las_data: space*
     	 	   "~A" LINE end_line {{data = []}}

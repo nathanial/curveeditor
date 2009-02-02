@@ -10,7 +10,6 @@ class LASParserScanner(runtime.Scanner):
     patterns = [
         ('"\\n"', re.compile('\n')),
         ('"~A"', re.compile('~A')),
-        ('"\\."', re.compile('\\.')),
         ('"~C"', re.compile('~C')),
         ('"WRAP."', re.compile('WRAP.')),
         ('":"', re.compile(':')),
@@ -21,8 +20,8 @@ class LASParserScanner(runtime.Scanner):
         (' ', re.compile(' ')),
         ('#[^\n]*\n', re.compile('#[^\n]*\n')),
         ('MNEMONIC', re.compile('\\w+')),
-        ('UNIT', re.compile('[^\n:. ]*')),
-        ('DESCRIPTION', re.compile('[^\n]*')),
+        ('UNIT', re.compile('[.][^\n:. ]*')),
+        ('DESCRIPTION', re.compile(':[^\n:]*')),
         ('STRING', re.compile('.*')),
         ('LINE', re.compile('[^\n]*')),
         ('DELIMITER_FREE_STRING', re.compile('[^\n:.]*')),
@@ -30,7 +29,7 @@ class LASParserScanner(runtime.Scanner):
         ('NUM', re.compile('-?[0-9]+')),
         ('FLOAT', re.compile('-?[0-9]+[.][0-9]+')),
         ('EMPTY', re.compile('')),
-        ('DATA', re.compile('[^\n:]*')),
+        ('DATA', re.compile('[^\n]*(?= :[^\n:]*)')),
     ]
     def __init__(self, str,*args,**kw):
         runtime.Scanner.__init__(self,None,{' ':None,'#[^\n]*\n':None,},str,*args,**kw)
@@ -110,12 +109,10 @@ class LASParser(runtime.Parser):
     def descriptor(self, _parent=None):
         _context = self.Context(_parent, self._scanner, 'descriptor', [])
         MNEMONIC = self._scan('MNEMONIC', context=_context)
-        self._scan('"\\."', context=_context)
         UNIT = self._scan('UNIT', context=_context)
         DATA = self._scan('DATA', context=_context)
-        self._scan('":"', context=_context)
         DESCRIPTION = self._scan('DESCRIPTION', context=_context)
-        return Descriptor(MNEMONIC, UNIT, DATA, DESCRIPTION.strip())
+        return Descriptor(MNEMONIC, UNIT[1:], DATA, DESCRIPTION[1:].strip())
 
     def las_data(self, _parent=None):
         _context = self.Context(_parent, self._scanner, 'las_data', [])
