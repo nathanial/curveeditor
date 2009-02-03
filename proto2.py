@@ -13,23 +13,23 @@ qApp = QApplication(sys.argv)
 
 aw = ApplicationWindow()
 
-lf = read_lasfile("/home/nathan/projects/CurveEditor/test.las")
+#lf = read_lasfile("/home/nathan/projects/CurveEditor/test.las")
 
-gamma = Plot(aw.main_widget, width=4, height=8)
-facies = Plot(aw.main_widget, width=4, height=8)
-porosity = Plot(aw.main_widget, width=4, height=8)
+#gamma = Plot(aw.main_widget, width=4, height=8)
+#facies = Plot(aw.main_widget, width=4, height=8)
+#porosity = Plot(aw.main_widget, width=4, height=8)
 
-gline, = gamma.plot(lf.gamma_list, lf.depth_list, "b-", picker=5)
-fline, = facies.plot(lf.facies_list, lf.depth_list, "r-", picker=5)
-pline, = porosity.plot(lf.porosity_list, lf.depth_list, "g-", picker=5)
+#gline, = gamma.plot(lf.gamma_list, lf.depth_list, "b-", picker=5)
+#fline, = facies.plot(lf.facies_list, lf.depth_list, "r-", picker=5)
+#pline, = porosity.plot(lf.porosity_list, lf.depth_list, "g-", picker=5)
 
-DraggableLine(gline,gamma).connect()
-DraggableLine(fline,facies).connect()
-DraggableLine(pline,porosity).connect()
+#DraggableLine(gline).connect()
+#DraggableLine(fline).connect()
+#DraggableLine(pline).connect()
 
-aw.addPlot(gamma)
-aw.addPlot(facies)
-aw.addPlot(porosity)
+#aw.add_plot(gamma)
+#aw.add_plot(facies)
+#aw.add_plot(porosity)
 
 aw.setWindowTitle("Curve Editor")
 aw.show()
