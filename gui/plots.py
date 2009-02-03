@@ -75,15 +75,15 @@ class Plot(FigureCanvas):
         return ret
 
 class LasFileLineChangeListener:
-    def __init__(self, lf_xs, lf_ys):
-        self.lf_xs = lf_xs
-        self.lf_ys = lf_ys
+    def __init__(self, xfield, yfield):
+        self.xfield = xfield
+        self.yfield = yfield
         
     def receive_line_change(self, xs, ys):
         for idx in range(0, len(xs)):
-            self.lf_xs[idx] = xs[idx]
+            self.xfield.set_at(idx,xs[idx])
         for idx in range(0, len(ys)):
-            self.lf_ys[idx] = ys[idx]
+            self.yfield.set_at(idx,ys[idx])
 
 class PlotWindow(QWidget):
     def __init__(self, parent = None):
@@ -120,10 +120,11 @@ class PlotWindow(QWidget):
     def change_curve(self, curve_name):
         if not curve_name == "None":
             try:
-                xs = getattr(self.las_file, str(curve_name + "_list"))
-                ys = self.las_file.depth_list
-                line, = self.plot.plot(xs,ys, "b-", picker=5)
-                listener = LasFileLineChangeListener(xs, ys)
+                xfield = getattr(self.las_file, str(curve_name + "_field"))
+                yfield = self.las_file.depth_field
+                line, = self.plot.plot(xfield.to_list(),yfield.to_list(),
+                                       "b-", picker=5)
+                listener = LasFileLineChangeListener(xfield, yfield)
                                                      
                 self.curve_line = DraggableLine(line, [listener])
                 self.curve_line.connect()

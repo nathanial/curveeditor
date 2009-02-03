@@ -55,7 +55,7 @@ class TestWriteLas(object):
         print "tested descriptor_to_las"
 
     def test_data_to_las(self):
-        las_data = LasData.split(parser.parse("las_data", """
+        data_rows = parser.divide_into_rows(parser.parse("data_rows", """
 ~Ascii
  1499.8790000 0.0000000000  -999.250000  -999.250000  -999.250000 1499.8790283
  1500.1290000 0.0000000000  -999.250000  -999.250000  -999.250000 1500.1290283
@@ -64,10 +64,11 @@ class TestWriteLas(object):
  1501.6290000 0.0000000000 0.0000000000 0.2674280107 78.869453430 1501.6290283
  1502.1290000 0.0000000000 0.0000000000 0.2560760081 78.008300781 1502.1290283
  1502.6290000 0.0000000000 0.0000000000 0.2421260029 75.581558228 1502.6290283 
-"""), curve_header)
-        nd = LasData.split(parser.parse("las_data", "~Ascii\n" + "\n".join(
-                    map(lambda ld: ld.to_las(), las_data))), curve_header)
-        assert las_data == nd
+"""), len(curve_header.descriptors))
+        fields = LasField.rows_to_fields(data_rows,curve_header)
+        ndata_rows = parser.divide_into_rows(parser.parse("data_rows", LasField.to_las(fields)), len(curve_header.descriptors))
+        nfields = LasField.rows_to_fields(ndata_rows, curve_header)
+        assert fields == nfields
         print "tested data_to_las"
 
     def test_las_file_to_las(self):
@@ -79,7 +80,7 @@ class TestWriteLas(object):
 
     def test_writing(self):
         lf = helpers.read_lasfile("test.las")
-        lf.depth_list[0] = "yack"
+        lf.depth_field.set_at(0,"yack")
         assert "yack" in lf.to_las()
         print "tested writing"
         

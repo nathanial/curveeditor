@@ -17,10 +17,11 @@ class LasFile(object):
         self.well_header = well_header
         self.curve_header = curve_header
         self.parameter_header = parameter_header
-        self.data_rows = data_rows
+        self.fields = LasField.rows_to_fields(data_rows, self.curve_header)
 
         for mnemonic in self.curve_header.descriptor_mnemonics():
-            setattr(self,mnemonic + "_list", self.acc_data_for(mnemonic))
+            field = LasField.find_with_mnemonic(mnemonic, self.fields)
+            setattr(self,mnemonic + "_field", field)
 
     def __eq__(self,that):
         if not isinstance(that, LasFile): return False
@@ -28,30 +29,14 @@ class LasFile(object):
                 self.well_header == that.well_header and
                 self.curve_header == that.curve_header and 
                 self.parameter_header == that.parameter_header and
-                self.data_rows == that.data_rows)
-
-    def acc_data_for(self, desc):
-        acc = []
-        for data_row in self.data_rows:
-            acc.append(getattr(data_row, desc))
-        return acc
-
-    def clean_dirty_data(self):
-        for mnemonic in self.curve_header.descriptor_mnemonics():
-            dirty_data = getattr(self, mnemonic + "_list")
-            idx = 0
-            for data_row in self.data_rows:
-                setattr(data_row,mnemonic,dirty_data[idx])
-                idx += 1
+                self.fields == that.fields)
 
     def to_las(self):
-        self.clean_dirty_data()
         return (self.version_header.to_las() +
                 self.well_header.to_las() + 
                 self.curve_header.to_las() +
                 self.parameter_header.to_las() +
-                "~Ascii\n" + 
-                "\n".join(map(lambda dr: dr.to_las(), self.data_rows)))
+                LasField.to_las(self.fields))
 
 class Descriptor(object):
     def __init__(self, mnemonic, unit = None, data = None, description = None):
@@ -79,53 +64,68 @@ class Descriptor(object):
                 (self.data or " ") + " : " + 
                 (self.description or " "))
 
-
-class LasData(object):        
-    def __init__(self, data, curve_header):
+class LasField(object):
+    def __init__(self, descriptor, data):
+        self.descriptor = descriptor
         self.data = data
-        self.curve_header = curve_header
-        for mnemonic in self.curve_header.descriptor_mnemonics():
-            setattr(self, mnemonic, self.data_for(mnemonic))
 
-    def __repr__(self): 
-        return self.__str__()
-    
-    def __str__(self):
-        return str(self.data)
+    def set_at(self, idx, val):
+        self.data[idx] = val
 
-    def __eq__(self,that):
-        if not isinstance(that, LasData): return False
-        return self.data == that.data
-
-    def data_for(self, desc):
-        idx = self.curve_header.descriptor_mnemonics().index(desc)
+    def get_at(self, idx):
         return self.data[idx]
 
-    @staticmethod
-    def split(data,curve_header):
-        row_len = len(curve_header.descriptors)
-        rows = LasData.split_into_rows(data, row_len)
-        return map(lambda r: LasData(r, curve_header), rows)
+    def data_length(self):
+        return len(self.data)
+
+    def __eq__(self, that):
+        if not isinstance(that, LasField): return False
+        if not self.descriptor == that.descriptor: return False
+
+        for idx in range(0, len(self.data)):
+            if not ((self.data[idx] - that.data[idx]) < 0.1):
+                return False
+        return True
+
+    def __str__(self):
+        return str(self.descriptor)
+    
+    def __repr__(self): return self.__str__()
+
+    def to_list(self):
+        return self.data
 
     @staticmethod
-    def split_into_rows(data, row_len):
-        cursor = 0
-        rows = []
-        while cursor < len(data):
-            rows.append(data[cursor:(cursor + row_len)])
-            cursor += row_len
-        return rows        
-
-    def clean_dirty_data(self):
+    def rows_to_fields(data_rows, curve_header):
+        fields = []
         idx = 0
-        for mnemonic in self.curve_header.descriptor_mnemonics():
-            self.data[idx] = getattr(self, mnemonic)
+        for descriptor in curve_header.descriptors:
+            field = LasField(descriptor, map(lambda row: row[idx], data_rows))
+            fields.append(field)
             idx += 1
+        return fields
 
-    def to_las(self):
-        self.clean_dirty_data()
-        return " ".join(map(lambda x: str(x), self.data))
-        
+    @staticmethod
+    def to_las(fields):
+        row_len = fields[0].data_length()
+        rows = []
+        for idx in range(0, row_len):
+            row = []
+            for field in fields:
+                row.append(field.get_at(idx))
+            rows.append(row)
+            
+        return "~Ascii\n" + "\n".join(
+            map(lambda r: " ".join(map(str, r)), rows))
+
+    @staticmethod
+    def find_with_mnemonic(mnemonic, fields):
+        for idx in range(0, len(fields)):
+            if fields[idx].descriptor.mnemonic.lower() == mnemonic:
+                return fields[idx]
+        return None
+                
+                
         
 class HasDescriptors(object):
     def descriptor_mnemonics(self):

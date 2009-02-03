@@ -104,8 +104,9 @@ def test_curve_header():
 #                                     "Porosity", "Gamma", "DEPTH"]
 
 def test_las_data():
-   data = parser.parse("las_data", las_data_text)
-   las_datas = LasData.split(data,curve_header)   
+   rows = parser.divide_into_rows(parser.parse("data_rows", las_data_text),
+                                  len(curve_header.descriptors))
+   fields = LasField.rows_to_fields(rows,curve_header)
 
 def test_las_file():
     las_text = ""
