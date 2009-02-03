@@ -48,7 +48,7 @@ parser LASParser:
     rule las_data: space*
     	 	   "~A" LINE end_line {{data = []}}
 		   (row {{data.extend(row)}} (end_line?) )*
-		   EMPTY
+		   space
 		   {{ return data }}
 
     rule row: {{columns = []}}

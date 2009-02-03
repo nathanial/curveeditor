@@ -3,11 +3,13 @@ from las.file import *
 import parser
 import helpers
 
+
 curve_header = CurveHeader([
         Descriptor(mnemonic="DEPT", unit="m", description="DEPTH"),
         Descriptor(mnemonic="NetGross", description="NetGross"),
         Descriptor(mnemonic="Facies", description="Facies"),
         Descriptor(mnemonic="Porosity", unit="m3/m3", description="Gamma"),
+        Descriptor(mnemonic="Gamma", unit="gAPI", description="Gamma"),
         Descriptor(mnemonic="DEPTH", unit="m", description="trend")])
 
 well_header = WellHeader([
@@ -61,7 +63,7 @@ class TestWriteLas(object):
  1501.1290000 0.0000000000 0.0000000000 0.2706460059  -999.250000 1501.1290283
  1501.6290000 0.0000000000 0.0000000000 0.2674280107 78.869453430 1501.6290283
  1502.1290000 0.0000000000 0.0000000000 0.2560760081 78.008300781 1502.1290283
- 1502.6290000 0.0000000000 0.0000000000 0.2421260029 75.581558228 1502.6290283
+ 1502.6290000 0.0000000000 0.0000000000 0.2421260029 75.581558228 1502.6290283 
 """), curve_header)
         nd = LasData.split(parser.parse("las_data", "~Ascii\n" + "\n".join(
                     map(lambda ld: ld.to_las(), las_data))), curve_header)
@@ -74,12 +76,19 @@ class TestWriteLas(object):
 
         assert ol == nl
         print "tested las_file_to_las"
+
+    def test_writing(self):
+        lf = helpers.read_lasfile("test.las")
+        lf.depth_list[0] = "yack"
+        assert "yack" in lf.to_las()
+        print "tested writing"
         
     def run_tests(self):
         self.test_descriptor_to_las()
         self.test_header_to_las()
         self.test_data_to_las()
         self.test_las_file_to_las()
+        self.test_writing()
         
 
 if __name__ == "__main__":

@@ -8,10 +8,11 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 class DraggableLine(object):
-    def __init__(self, line):
+    def __init__(self, line, line_change_listeners = []):
         self.line = line
         self.press = None
         self.canvas = self.line.figure.canvas
+        self.line_change_listeners = line_change_listeners
 
     def connect(self):
         self.cidpress = self.canvas.mpl_connect(
@@ -38,6 +39,7 @@ class DraggableLine(object):
         self.line.set_xdata(xs)
         self.line.set_ydata(ys)
         self.canvas.draw()
+        self.publish_line_change(xs, ys)
 
     def on_release(self, event):
         self.press = None
@@ -47,6 +49,11 @@ class DraggableLine(object):
         self.canvas.mpl_disconnect(self.cidpress)
         self.canvas.mpl_disconnect(self.cidrelease)
         self.canvas.mpl_disconnect(self.cidmotion)
+
+    def publish_line_change(self, xs, ys):
+        for listener in self.line_change_listeners:
+            listener.receive_line_change(xs,ys)
+            
 
 class Plot(FigureCanvas):
     def __init__(self, parent = None, width=5, height=4, dpi=100):
@@ -66,6 +73,17 @@ class Plot(FigureCanvas):
         ret = self.axes.plot(*args, **kwargs)
         self.draw()
         return ret
+
+class LasFileLineChangeListener:
+    def __init__(self, lf_xs, lf_ys):
+        self.lf_xs = lf_xs
+        self.lf_ys = lf_ys
+        
+    def receive_line_change(self, xs, ys):
+        for idx in range(0, len(xs)):
+            self.lf_xs[idx] = xs[idx]
+        for idx in range(0, len(ys)):
+            self.lf_ys[idx] = ys[idx]
 
 class PlotWindow(QWidget):
     def __init__(self, parent = None):
@@ -102,15 +120,22 @@ class PlotWindow(QWidget):
     def change_curve(self, curve_name):
         if not curve_name == "None":
             try:
-                self.curve_line, = self.plot.plot(getattr(self.las_file, 
-                                                         str(curve_name + "_list")),
-                                                 self.las_file.depth_list, "b-", picker=5)
-                DraggableLine(self.curve_line).connect()
+                xs = getattr(self.las_file, str(curve_name + "_list"))
+                ys = self.las_file.depth_list
+                line, = self.plot.plot(xs,ys, "b-", picker=5)
+                listener = LasFileLineChangeListener(xs, ys)
+                                                     
+                self.curve_line = DraggableLine(line, [listener])
+                self.curve_line.connect()
                 self.repaint()
             except AttributeError:
-                self.curve_line, = self.plot.plot([], [])
+                line, = self.plot.plot([], [])
+                self.curve_line = DraggableLine(line)
+                self.curve_line.connect()
         else:
-            self.curve_line, = self.plot.plot([],[])
+            line, = self.plot.plot([],[])
+            self.curve_line = DraggableLine(line)
+            self.curve_line.connect()
 
     
                        
