@@ -70,7 +70,6 @@ class TestWriteLas(object):
 
     def test_las_file_to_las(self):
         ol = helpers.read_lasfile("test.las")
-#        print ol.to_las()
         nl = parser.parse("las_file", ol.to_las())
 
         assert ol == nl

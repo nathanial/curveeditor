@@ -1,0 +1,98 @@
+import sys, os, random
+from PyQt4 import QtGui, QtCore
+from numpy import arange, sin, pi
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+
+class DraggableLine(object):
+    def __init__(self, line):
+        self.line = line
+        self.press = None
+
+    def connect(self):
+        self.cidpress = self.line.figure.canvas.mpl_connect(
+            'button_press_event', self.on_press)
+        self.cidrelease = self.line.figure.canvas.mpl_connect(
+            'button_release_event', self.on_release)
+        self.cidmotion = self.line.figure.canvas.mpl_connect(
+            'motion_notify_event', self.on_motion)
+
+    def on_press(self, event):
+        contains,attrd = self.line.contains(event)
+        if not contains: return
+        self.press = attrd['ind']
+
+    def on_motion(self, event):
+        if self.press is None: return
+        ind = self.press
+
+        oxs = self.line.get_xdata()
+        oys = self.line.get_ydata()
+        oxs[ind] = event.xdata
+        oys[ind] = event.ydata
+        self.line.set_xdata(oxs)
+        self.line.set_ydata(oys)
+        self.line.figure.canvas.draw()
+
+    def on_release(self, event):
+        self.press = None
+        self.line.figure.canvas.draw()
+
+    def disconnect(self):
+        self.line.figure.canvas.mpl_disconnect(self.cidpress)
+        self.line.figure.canvas.mpl_disconnect(self.cidrelease)
+        self.line.figure.canvas.mpl_disconnect(self.cidmotion)
+
+class PlotCanvas(FigureCanvas):
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        self.fig = Figure(figsize=(width,height), dpi=dpi)
+        self.axes = self.fig.add_subplot(111)
+        
+        self.compute_initial_figure()
+        
+        FigureCanvas.__init__(self,self.fig)
+        self.setParent(parent)
+        
+        FigureCanvas.setSizePolicy(self,
+                                   QtGui.QSizePolicy.Expanding,
+                                   QtGui.QSizePolicy.Expanding)
+        FigureCanvas.updateGeometry(self)
+
+    def compute_initial_figure(self): raise "Unimplemented"
+
+class Plotter:
+    def __init__(self, xs, ys, parent = None, width=5, height=4, dpi=100):
+        self.fig = plt.figure()
+        self.fig.add_subplot(111)
+        self.xs = xs
+        self.ys = ys
+
+        self.compute_initial_figure()
+        self.fig.setParent(parent)
+
+    def compute_initial_figure(self):
+        line, = plt.plot(self.xs, self.ys, "b-", picker=5)
+        dline = DraggableLine(line)
+        dline.connect()
+
+#class MyStaticMplCanvas(MyMplCanvas):
+#    def compute_initial_figure(self):
+#        t = arange(0.0, 3.0, 0.01)
+#        s = sin(2*pi*t)
+#        self.axes.plot(t,s)
+#
+#class MyDynamicMplCanvas(MyMplCanvas):
+#    def __init__(self, *args, **kwargs):
+#        MyMplCanvas.__init__(self, *args, **kwargs)
+#        timer = QtCore.QTimer(self)
+#        QtCore.QObject.connect(timer, QtCore.SIGNAL("timeout()"), self.update_figure)
+#        timer.start(1000)
+#
+#    def compute_initial_figure(self):
+#        self.axes.plot([0,1,2,3],[1,2,0,4], 'r')
+#        
+#    def update_figure(self):
+#        l = [random.randint(0,10) for i in xrange(4)]
+#        self.axes.plot([0,1,2,3], l, 'r')
+#        self.draw()
