@@ -14,6 +14,10 @@ from PyQt4.QtCore import SIGNAL
 from gui.menus import FileMenu, TracksMenu
 from gui.gutil import minimum_size_policy, fixed_size_policy
 
+class DepthSlider(QSlider):
+    def __init__(self, parent = None):
+        QSlider.__init__(self, QtCore.Qt.Vertical, parent)
+
 class ApplicationWindow(QMainWindow):
     def __init__(self):
         self.tracks = []
@@ -33,7 +37,7 @@ class ApplicationWindow(QMainWindow):
         self.main_widget = QWidget(self)      
         minimum_size_policy(self.main_widget)
         self.main_layout = QHBoxLayout(self.main_widget)
-        self.depth_slider = QSlider(QtCore.Qt.Vertical,self.main_widget)
+        self.depth_slider = DepthSlider(self.main_widget)
         self.main_layout.addWidget(self.depth_slider)
         self.main_layout.setSizeConstraint(QLayout.SetNoConstraint)
 
@@ -45,6 +49,8 @@ class ApplicationWindow(QMainWindow):
                      self.tracks_panel.add_new_track)
         self.connect(self.tracks_menu, SIGNAL("remove_track"),
                      self.remove_track_and_resize)
+        self.connect(self.depth_slider, SIGNAL("valueChanged(int)"),
+                     self.tracks_panel.change_depth)
         
         self.tracks_panel.add_new_track()
         

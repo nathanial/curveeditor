@@ -89,7 +89,10 @@ class TrackWindow(QWidget):
     def __init__(self, parent = None):
         QWidget.__init__(self, parent)
         fixed_size_policy(self)
-        
+
+        self.increment = 0        
+        self.ymin = 0
+        self.yrange = 0
         self.curves = ["None"]
         self.las_file = None
         self.curve_line = None
@@ -114,7 +117,7 @@ class TrackWindow(QWidget):
             self.curves = self.las_file.curve_header.mnemonics()
             self.curve_box.clear()
             self.curve_box.addItems(self.curves)
-        
+
         self.repaint()
 
     def change_curve(self, curve_name):
@@ -122,8 +125,14 @@ class TrackWindow(QWidget):
             try:
                 xfield = getattr(self.las_file, str(curve_name + "_field"))
                 yfield = self.las_file.depth_field
-                line, = self.track.plot(xfield.to_list(),yfield.to_list(),
-                                       "b-", picker=5)
+                xs = xfield.to_list()
+                ys = yfield.to_list()
+                line, = self.track.plot(xs,ys,"b-", picker=5, scaley=False)
+                self.ymin = min(ys)
+                self.yrange = max(ys) - self.ymin
+                print "yrange = %s " % self.yrange
+                self.track.axes.set_ylim(self.ymin + self._percentage_increment(), 
+                                         self.ymin + 100 + self._percentage_increment())
                 listener = LasFileLineChangeListener(xfield, yfield)
                                                      
                 self.curve_line = DraggableLine(line, [listener])
@@ -138,6 +147,15 @@ class TrackWindow(QWidget):
             self.curve_line = DraggableLine(line)
             self.curve_line.connect()
 
+    def set_increment(self, increment):
+        self.increment = increment
+        self.track.axes.set_ylim(self.ymin + self._percentage_increment(),
+                                 self.ymin + 100 + self._percentage_increment())
+        self.track.draw()
+
+    def _percentage_increment(self):
+        return ((self.increment + 1) / 100.0) * self.yrange
+
 class TracksPanel(QWidget):
     def __init__(self, parent = None):
         QWidget.__init__(self,parent)
@@ -145,6 +163,7 @@ class TracksPanel(QWidget):
         self.track_windows = []
         self.tracks_layout = QHBoxLayout(self)
         self.las_file = None
+        self.increment = 0
     
     def add_track_window(self, track_window):
         self.tracks_layout.addWidget(track_window)
@@ -159,6 +178,7 @@ class TracksPanel(QWidget):
 
     def add_new_track(self):
         tw = TrackWindow(self)
+        tw.increment = self.increment
         if self.las_file:
             tw.las_update(self.las_file)
         self.add_track_window(tw)
@@ -172,3 +192,7 @@ class TracksPanel(QWidget):
         QApplication.processEvents()
         self.adjustSize()
         QApplication.processEvents()
+
+    def change_depth(self, increment):
+        self.increment = increment
+        each(self.track_windows, lambda tw: tw.set_increment(increment))
