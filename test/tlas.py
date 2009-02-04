@@ -1,5 +1,6 @@
 from las.headers import *
 from las.file import *
+from util import subdivide
 import parser
 import helpers
 
@@ -55,7 +56,8 @@ class TestWriteLas(object):
         print "tested descriptor_to_las"
 
     def test_data_to_las(self):
-        data_rows = parser.divide_into_rows(parser.parse("data_rows", """
+        cols = len(curve_header.descriptors)
+        data_rows = subdivide(parser.parse("data_rows", """
 ~Ascii
  1499.8790000 0.0000000000  -999.250000  -999.250000  -999.250000 1499.8790283
  1500.1290000 0.0000000000  -999.250000  -999.250000  -999.250000 1500.1290283
@@ -64,9 +66,9 @@ class TestWriteLas(object):
  1501.6290000 0.0000000000 0.0000000000 0.2674280107 78.869453430 1501.6290283
  1502.1290000 0.0000000000 0.0000000000 0.2560760081 78.008300781 1502.1290283
  1502.6290000 0.0000000000 0.0000000000 0.2421260029 75.581558228 1502.6290283 
-"""), len(curve_header.descriptors))
+"""), cols)
         fields = LasField.rows_to_fields(data_rows,curve_header)
-        ndata_rows = parser.divide_into_rows(parser.parse("data_rows", LasField.to_las(fields)), len(curve_header.descriptors))
+        ndata_rows = subdivide(parser.parse("data_rows", LasField.to_las(fields)), cols)
         nfields = LasField.rows_to_fields(ndata_rows, curve_header)
         assert fields == nfields
         print "tested data_to_las"

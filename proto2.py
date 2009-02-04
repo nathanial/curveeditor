@@ -1,5 +1,4 @@
 import sys, os, random
-from gui.plots import Plot, DraggableLine
 from gui.main import ApplicationWindow
 from helpers import read_lasfile
 from PyQt4 import QtGui, QtCore

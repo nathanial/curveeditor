@@ -2,6 +2,7 @@ from __future__ import with_statement
 import parser
 from las.headers import *
 from las.file import *
+from util import subdivide, forall
 
 well_header_text = """
 ~Well
@@ -64,7 +65,6 @@ las_data_text = """
 def test_descriptors():
     def parse_from(n):
         descriptor = parser.parse("descriptor", descriptors_text[n])
-        print "descriptor = %s " % descriptor
         return descriptor
 
     dept = parse_from(0)
@@ -85,28 +85,32 @@ def test_descriptors():
     assert start == Descriptor(mnemonic="STRT", unit="m", data="1499.8790000")
     assert stop == Descriptor(mnemonic="STOP", unit="m", data="2416.3790000")
 
+    print "tested descriptors"
+
 def test_version_header():
     version_header = parser.parse("version_header", version_header_text)
     assert version_header == VersionHeader(2.0, False)
+    print "tested version_header"
 
 def test_well_header():
     well_header = parser.parse("well_header", well_header_text)
     assert well_header.date.data == "Monday, January 26 2009 14:04:02"
     assert well_header.date.description == "DATE"
-    print well_header
+    print "tested well_header"
     
 def test_curve_header():
     global curve_header
     curve_header = parser.parse("curve_header", curve_header_text)
     assert len(curve_header.descriptors) == 6
-    
-#    assert curve_header.mnemonics == ["DEPT", "NetGross", "Facies", 
-#                                     "Porosity", "Gamma", "DEPTH"]
+    mnemonics = curve_header.mnemonics()
+    assert forall(["dept", "netgross", "facies", "porosity", "gamma", "depth"],
+                  lambda m: m in mnemonics)
+    print "tested curve_header"
 
 def test_las_data():
-   rows = parser.divide_into_rows(parser.parse("data_rows", las_data_text),
-                                  len(curve_header.descriptors))
-   fields = LasField.rows_to_fields(rows,curve_header)
+    cols = len(curve_header.descriptors)
+    rows = subdivide(parser.parse("data_rows", las_data_text), cols)
+    fields = LasField.rows_to_fields(rows,curve_header)
 
 def test_las_file():
     las_text = ""

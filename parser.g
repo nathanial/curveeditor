@@ -1,14 +1,6 @@
 from las.file import *
 from las.headers import *
-
-def divide_into_rows(data, row_len):
-    rows = []
-    cursor = 0
-    while cursor < len(data):
-    	  row = data[cursor:(cursor + row_len)]
-	  rows.append(row)
-	  cursor += row_len
-    return rows
+from util import subdivide
 
 %%
 parser LASParser:
@@ -27,7 +19,7 @@ parser LASParser:
     token DATA: "[^\n]*(?= :[^\n:]*)"
 
     rule las_file: version_header well_header curve_header parameter_header data_rows 
-    	 	   {{ return LasFile(version_header, well_header, curve_header, parameter_header, divide_into_rows(data_rows, len(curve_header.descriptors))) }}
+    	 	   {{ return LasFile(version_header, well_header, curve_header, parameter_header, subdivide(data_rows, len(curve_header.descriptors))) }}
 
     rule well_header: space* 
     	 	      "~W" LINE end_line {{ descriptors = [] }}

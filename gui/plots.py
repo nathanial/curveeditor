@@ -56,7 +56,7 @@ class DraggableLine(object):
             listener.receive_line_change(xs,ys)
             
 
-class Plot(FigureCanvas):
+class Track(FigureCanvas):
     def __init__(self, parent = None, width=5, height=4, dpi=100):
         self.fig = Figure(figsize=(width,height), dpi=dpi)
         self.axes = self.fig.add_subplot(111)
@@ -65,8 +65,8 @@ class Plot(FigureCanvas):
         FigureCanvas.__init__(self, self.fig)
         self.setParent(parent)
         FigureCanvas.setSizePolicy(self,
-                                   QtGui.QSizePolicy.Expanding,
-                                   QtGui.QSizePolicy.Expanding)
+                                   QtGui.QSizePolicy.Fixed,
+                                   QtGui.QSizePolicy.Fixed)
         FigureCanvas.updateGeometry(self)
 
     def plot(self, *args, **kwargs):
@@ -84,37 +84,39 @@ class LasFileLineChangeListener:
         def sety(i): self.yfield[i] = ys[i]
         times(len(xs), setx)
         times(len(ys), sety)
-#        for idx in range(0, len(xs)):
-#            self.xfield.set_at(idx,xs[idx])
-#        for idx in range(0, len(ys)):
-#            self.yfield.set_at(idx,ys[idx])
 
-class PlotWindow(QWidget):
+class TrackWindow(QWidget):
     def __init__(self, parent = None):
         QWidget.__init__(self, parent)
-        QWidget.setSizePolicy(self,
-                              QtGui.QSizePolicy.Expanding,
-                              QtGui.QSizePolicy.Expanding)
+        QWidget.setSizePolicy(self, 
+                              QtGui.QSizePolicy.Fixed,
+                              QtGui.QSizePolicy.Fixed)
         QWidget.updateGeometry(self)
-
-        self.layout = QVBoxLayout(self)
+        
         self.curves = ["None"]
         self.las_file = None
         self.curve_line = None
 
-        self.plot = Plot(self, width=4, height=8)        
+        self.track = Track(self, width=4, height=8)        
+
         self.curve_box = QComboBox(self)
+        QWidget.setSizePolicy(self.curve_box, 
+                              QtGui.QSizePolicy.Minimum,
+                              QtGui.QSizePolicy.Minimum)
+        QWidget.updateGeometry(self.curve_box)
         self.curve_box.addItems(self.curves)
         self.connect(self.curve_box, 
                      SIGNAL("currentIndexChanged(QString)"),
                      self.change_curve)
 
-        self.layout.addWidget(self.curve_box)
-        self.layout.addWidget(self.plot)
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.curve_box)
+        layout.addWidget(self.track)
+        self.adjustSize()
         
-        
-    def las_update(self):
-        if not self.las_file == None:
+    def las_update(self, las_file):
+        if not las_file == None:
+            self.las_file = las_file
             self.curves = self.las_file.curve_header.mnemonics()
             self.curve_box.clear()
             self.curve_box.addItems(self.curves)
@@ -126,19 +128,19 @@ class PlotWindow(QWidget):
             try:
                 xfield = getattr(self.las_file, str(curve_name + "_field"))
                 yfield = self.las_file.depth_field
-                line, = self.plot.plot(xfield.to_list(),yfield.to_list(),
+                line, = self.track.plot(xfield.to_list(),yfield.to_list(),
                                        "b-", picker=5)
                 listener = LasFileLineChangeListener(xfield, yfield)
                                                      
                 self.curve_line = DraggableLine(line, [listener])
-                self.curve_line.connect()
+                self.curve_line.connect()                
                 self.repaint()
             except AttributeError:
-                line, = self.plot.plot([], [])
+                line, = self.track.plot([], [])
                 self.curve_line = DraggableLine(line)
                 self.curve_line.connect()
         else:
-            line, = self.plot.plot([],[])
+            line, = self.track.plot([],[])
             self.curve_line = DraggableLine(line)
             self.curve_line.connect()
 
