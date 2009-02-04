@@ -1,12 +1,15 @@
 import sys, os, random
 from PyQt4 import QtGui, QtCore
-from PyQt4.QtGui import QWidget, QVBoxLayout, QComboBox
-from PyQt4.QtCore import SIGNAL
+from PyQt4.QtGui import QMainWindow, QMenu, QWidget,\
+    QVBoxLayout, QApplication, QMessageBox, QHBoxLayout,\
+    QFileDialog, QSlider, QComboBox, QLayout
+from PyQt4.QtCore import SIGNAL, QSize
 from numpy import arange, sin, pi
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from util import times
+from util import times, each
+from gui.gutil import minimum_size_policy, fixed_size_policy
 
 class DraggableLine(object):
     def __init__(self, line, line_change_listeners = []):
@@ -64,10 +67,7 @@ class Track(FigureCanvas):
 
         FigureCanvas.__init__(self, self.fig)
         self.setParent(parent)
-        FigureCanvas.setSizePolicy(self,
-                                   QtGui.QSizePolicy.Fixed,
-                                   QtGui.QSizePolicy.Fixed)
-        FigureCanvas.updateGeometry(self)
+        fixed_size_policy(self)
 
     def plot(self, *args, **kwargs):
         ret = self.axes.plot(*args, **kwargs)
@@ -88,10 +88,7 @@ class LasFileLineChangeListener:
 class TrackWindow(QWidget):
     def __init__(self, parent = None):
         QWidget.__init__(self, parent)
-        QWidget.setSizePolicy(self, 
-                              QtGui.QSizePolicy.Fixed,
-                              QtGui.QSizePolicy.Fixed)
-        QWidget.updateGeometry(self)
+        fixed_size_policy(self)
         
         self.curves = ["None"]
         self.las_file = None
@@ -100,10 +97,7 @@ class TrackWindow(QWidget):
         self.track = Track(self, width=4, height=8)        
 
         self.curve_box = QComboBox(self)
-        QWidget.setSizePolicy(self.curve_box, 
-                              QtGui.QSizePolicy.Minimum,
-                              QtGui.QSizePolicy.Minimum)
-        QWidget.updateGeometry(self.curve_box)
+        minimum_size_policy(self.curve_box)
         self.curve_box.addItems(self.curves)
         self.connect(self.curve_box, 
                      SIGNAL("currentIndexChanged(QString)"),
@@ -112,7 +106,7 @@ class TrackWindow(QWidget):
         layout = QVBoxLayout(self)
         layout.addWidget(self.curve_box)
         layout.addWidget(self.track)
-        self.adjustSize()
+        self.updateGeometry()
         
     def las_update(self, las_file):
         if not las_file == None:
@@ -144,9 +138,37 @@ class TrackWindow(QWidget):
             self.curve_line = DraggableLine(line)
             self.curve_line.connect()
 
+class TracksPanel(QWidget):
+    def __init__(self, parent = None):
+        QWidget.__init__(self,parent)
+        minimum_size_policy(self)
+        self.track_windows = []
+        self.tracks_layout = QHBoxLayout(self)
+        self.las_file = None
     
-                       
-        
-        
-        
-        
+    def add_track_window(self, track_window):
+        self.tracks_layout.addWidget(track_window)
+        self.track_windows.append(track_window)
+
+    def remove_track(self):
+        right_most = self.track_windows[-1]
+        right_most.hide()
+        self.tracks_layout.removeWidget(right_most)
+        self.track_windows = self.track_windows[:-1]
+        self.resize_after_remove()
+
+    def add_new_track(self):
+        tw = TrackWindow(self)
+        if self.las_file:
+            tw.las_update(self.las_file)
+        self.add_track_window(tw)
+
+    def send_to_tracks(self, las_file):
+        self.las_file = las_file
+        each(self.track_windows, lambda t: t.las_update(las_file))
+
+    def resize_after_remove(self):
+        self.updateGeometry()
+        QApplication.processEvents()
+        self.adjustSize()
+        QApplication.processEvents()

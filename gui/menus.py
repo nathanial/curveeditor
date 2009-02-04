@@ -7,7 +7,7 @@ from PyQt4.QtGui import QMainWindow, QMenu, QWidget,\
 from numpy import arange, sin, pi
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from gui.plots import Track, DraggableLine, TrackWindow
+from gui.tracks import Track, DraggableLine, TrackWindow
 from util import each
 from PyQt4.QtCore import SIGNAL
 
@@ -47,9 +47,9 @@ class TracksMenu(QMenu):
         self.addAction('&Remove Track', self.removeTrack)
         
     def addTrack(self):
-        self.app_window.add_new_track()
+        self.emit(SIGNAL("add_track"))
         
     def removeTrack(self):
-        self.app_window.remove_track()
+        self.emit(SIGNAL("remove_track"))
         
         
