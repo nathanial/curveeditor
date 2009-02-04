@@ -6,6 +6,7 @@ from numpy import arange, sin, pi
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+from util import times
 
 class DraggableLine(object):
     def __init__(self, line, line_change_listeners = []):
@@ -68,7 +69,6 @@ class Plot(FigureCanvas):
                                    QtGui.QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
 
-
     def plot(self, *args, **kwargs):
         ret = self.axes.plot(*args, **kwargs)
         self.draw()
@@ -80,17 +80,21 @@ class LasFileLineChangeListener:
         self.yfield = yfield
         
     def receive_line_change(self, xs, ys):
-        for idx in range(0, len(xs)):
-            self.xfield.set_at(idx,xs[idx])
-        for idx in range(0, len(ys)):
-            self.yfield.set_at(idx,ys[idx])
+        def setx(i): self.xfield[i] = xs[i]
+        def sety(i): self.yfield[i] = ys[i]
+        times(len(xs), setx)
+        times(len(ys), sety)
+#        for idx in range(0, len(xs)):
+#            self.xfield.set_at(idx,xs[idx])
+#        for idx in range(0, len(ys)):
+#            self.yfield.set_at(idx,ys[idx])
 
 class PlotWindow(QWidget):
     def __init__(self, parent = None):
         QWidget.__init__(self, parent)
         QWidget.setSizePolicy(self,
-                                   QtGui.QSizePolicy.Expanding,
-                                   QtGui.QSizePolicy.Expanding)
+                              QtGui.QSizePolicy.Expanding,
+                              QtGui.QSizePolicy.Expanding)
         QWidget.updateGeometry(self)
 
         self.layout = QVBoxLayout(self)
@@ -111,7 +115,7 @@ class PlotWindow(QWidget):
         
     def las_update(self):
         if not self.las_file == None:
-            self.curves = self.las_file.curve_header.descriptor_mnemonics()
+            self.curves = self.las_file.curve_header.mnemonics()
             self.curve_box.clear()
             self.curve_box.addItems(self.curves)
         

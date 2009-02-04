@@ -1,5 +1,6 @@
 import re
 from file import HasDescriptors
+from util import lfind
 
 class VersionHeader(object):
     def __init__(self, version, wrap): 
@@ -50,13 +51,12 @@ class HeaderWithDescriptors(HasDescriptors):
         if attr in self.__dict__: 
             return self.__dict__[attr]
         else:
-            if attr in self.descriptor_mnemonics():
-                idx = self.descriptor_mnemonics().index(attr)
-                descriptor = self.descriptors[idx]
-                return descriptor
-            else:
-                print "attr %s not found in %s " % (attr, self.descriptor_mnemonics())
+            descriptor = lfind(self.descriptors, 
+                               lambda d: d.mnemonic.lower() == attr)
+            if not descriptor:
+                print "attr %s not found in %s " % (attr, self.mnemonics())
                 raise AttributeError
+            return descriptor
 
     def to_las(self):
         return (self.identifier + "\n" + 

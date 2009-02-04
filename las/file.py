@@ -1,5 +1,6 @@
 import re
 import new
+from util import lfind, tuplize
 
 def preprocess_str(obj):
     if isinstance(obj, str):
@@ -19,9 +20,9 @@ class LasFile(object):
         self.parameter_header = parameter_header
         self.fields = LasField.rows_to_fields(data_rows, self.curve_header)
 
-        for mnemonic in self.curve_header.descriptor_mnemonics():
+        for mnemonic in self.curve_header.mnemonics():
             field = LasField.find_with_mnemonic(mnemonic, self.fields)
-            setattr(self,mnemonic + "_field", field)
+            setattr(self, mnemonic + "_field", field)
 
     def __eq__(self,that):
         if not isinstance(that, LasFile): return False
@@ -64,10 +65,20 @@ class Descriptor(object):
                 (self.data or " ") + " : " + 
                 (self.description or " "))
 
+class HasDescriptors(object):
+    def mnemonics(self):
+        return map(lambda d: d.mnemonic.lower(), self.descriptors)
+
 class LasField(object):
     def __init__(self, descriptor, data):
         self.descriptor = descriptor
         self.data = data
+
+    def __getitem__(self, idx):
+        return self.get_at(idx)
+
+    def __setitem__(self, idx, val):
+        return self.set_at(idx, val)
 
     def set_at(self, idx, val):
         self.data[idx] = val
@@ -75,18 +86,15 @@ class LasField(object):
     def get_at(self, idx):
         return self.data[idx]
 
-    def data_length(self):
+    def data_len(self):
         return len(self.data)
 
     def __eq__(self, that):
         if not isinstance(that, LasField): return False
         if not self.descriptor == that.descriptor: return False
-
-        for idx in range(0, len(self.data)):
-            if not ((self.data[idx] - that.data[idx]) < 0.1):
-                return False
-        return True
-
+        return not lfind(tuplize(self.data, that.data), 
+                         lambda dd: dd[0] - dd[1] > 0.1)
+        
     def __str__(self):
         return str(self.descriptor)
     
@@ -97,36 +105,18 @@ class LasField(object):
 
     @staticmethod
     def rows_to_fields(data_rows, curve_header):
-        fields = []
-        idx = 0
-        for descriptor in curve_header.descriptors:
-            field = LasField(descriptor, map(lambda row: row[idx], data_rows))
-            fields.append(field)
-            idx += 1
-        return fields
+        ds = curve_header.descriptors
+        cols = len(ds)
+        return [LasField(ds[i],map(lambda r: r[i], data_rows))
+                for i in range(0, cols)]
 
     @staticmethod
     def to_las(fields):
-        row_len = fields[0].data_length()
-        rows = []
-        for idx in range(0, row_len):
-            row = []
-            for field in fields:
-                row.append(field.get_at(idx))
-            rows.append(row)
-            
+        cols = fields[0].data_len()
+        rows = [[field[col] for field in fields] for col in range(0, cols)]
         return "~Ascii\n" + "\n".join(
             map(lambda r: " ".join(map(str, r)), rows))
 
     @staticmethod
     def find_with_mnemonic(mnemonic, fields):
-        for idx in range(0, len(fields)):
-            if fields[idx].descriptor.mnemonic.lower() == mnemonic:
-                return fields[idx]
-        return None
-                
-                
-        
-class HasDescriptors(object):
-    def descriptor_mnemonics(self):
-        return map(lambda d: d.mnemonic.lower(), self.descriptors)
+        return lfind(fields, lambda f: f.descriptor.mnemonic.lower() == mnemonic)
