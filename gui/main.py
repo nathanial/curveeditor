@@ -8,7 +8,7 @@ from PyQt4.QtGui import QMainWindow, QMenu, QWidget,\
 from numpy import arange, sin, pi
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from gui.tracks import Track, DraggableLine, TrackWindow, TracksPanel
+from gui.tracks import Track, TrackWindow, TracksPanel
 from util import each
 from PyQt4.QtCore import SIGNAL
 from gui.menus import FileMenu, TracksMenu

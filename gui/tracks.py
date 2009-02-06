@@ -14,54 +14,6 @@ from gui.gutil import minimum_size_policy, fixed_size_policy
 from gui.menus import TrackContextMenu, TrackColorMenu
 from gui.curve import Curve
 
-class DraggableLine(object):
-    def __init__(self, line, line_change_listeners = []):
-        self.line = line
-        self.press = None
-        self.canvas = self.line.figure.canvas
-        self.line_change_listeners = line_change_listeners
-
-    def connect(self):
-        self.cidpress = self.canvas.mpl_connect(
-            'button_press_event', self.on_press)
-        self.cidrelease = self.canvas.mpl_connect(
-            'button_release_event', self.on_release)
-        self.cidmotion = self.canvas.mpl_connect(
-            'motion_notify_event', self.on_motion)
-
-    def on_press(self, event):
-        contains,attrd = self.line.contains(event)
-        if not contains: return
-        self.press = attrd['ind']
-
-    def on_motion(self, event):
-        if self.press is None: return
-        ind = self.press
-
-        xs = self.line.get_xdata()
-        ys = self.line.get_ydata()
-        xs[ind] = event.xdata
-        ys[ind] = event.ydata
-       
-        self.line.set_xdata(xs)
-        self.line.set_ydata(ys)
-        self.canvas.draw()
-        self.publish_line_change(xs, ys)
-
-    def on_release(self, event):
-        self.press = None
-        self.canvas.draw()
-
-    def disconnect(self):
-        self.canvas.mpl_disconnect(self.cidpress)
-        self.canvas.mpl_disconnect(self.cidrelease)
-        self.canvas.mpl_disconnect(self.cidmotion)
-
-    def publish_line_change(self, xs, ys):
-        for listener in self.line_change_listeners:
-            listener.receive_line_change(xs,ys)
-            
-
 class Track(FigureCanvas):
     def __init__(self, parent = None, width=5, height=4, dpi=100):
         self.fig = Figure(figsize=(width,height), dpi=dpi)
@@ -74,20 +26,6 @@ class Track(FigureCanvas):
         self.setParent(parent)
         fixed_size_policy(self)
 
-#    def plot(self, xs, ys, *args, **kwargs):
-#        self.xs = xs
-#        self.ys = ys
-#        ret = self.axes.plot(xs, ys, *args, **kwargs)
-#        if not ys == []:
-#            self.ymin = min(ys)
-#            self.yrange = max(ys) - self.ymin
-#        else:
-#            self.ymin = 0
-#            self.yrange = 0
-#        self._reset_ylim()
-#        self.draw()
-#        return ret
-
     def switch_curve(self, curve, index):
         self.axes.clear()
         if len(self.curves) == 0:
@@ -97,8 +35,8 @@ class Track(FigureCanvas):
         each(self.curves, self.axes.add_line)
         self.axes.autoscale_view(scaley=False)
         if len(self.curves) <= 1:
-            self.ymin = min(curve.ys)
-            self.yrange = max(curve.ys) - self.ymin
+            self.ymin = min(curve.yfield.to_list())
+            self.yrange = max(curve.yfield.to_list()) - self.ymin
             self._reset_ylim()
         self.draw()
 
@@ -119,17 +57,6 @@ class Track(FigureCanvas):
 
     def _percentage_increment(self):
         return ((self.increment + 1) / 100.0) * self.yrange
-
-class LasFileLineChangeListener:
-    def __init__(self, xfield, yfield):
-        self.xfield = xfield
-        self.yfield = yfield
-        
-    def receive_line_change(self, xs, ys):
-        def setx(i): self.xfield[i] = xs[i]
-        def sety(i): self.yfield[i] = ys[i]
-        times(len(xs), setx)
-        times(len(ys), sety)
 
 class TrackButtonPanel(QWidget):
     def __init__(self, track_window):
@@ -202,27 +129,18 @@ class TrackWindow(QWidget):
             try:
                 xfield = getattr(self.las_file, str(curve_name + "_field"))
                 yfield = self.las_file.depth_field
-                xs = xfield.to_list()
-                ys = yfield.to_list()
 
-                curve = Curve(xs,ys,picker=5)#,scaley=False)
+                curve = Curve(xfield,yfield,picker=5)
                 curve.set_color(self.colors[index])
                 curve.set_marker(self.markers[index])
+                curve.connect_draggable(self.track)
 
                 self.track.switch_curve(curve, index)
                 self.curves[index] = curve
-
-                listener = LasFileLineChangeListener(xfield, yfield)                                                     
-                dragline = DraggableLine(curve, [listener])
-                dragline.connect()                
                 self.repaint()
             except AttributeError, e:
                 print "Could not change curve: Attribute Error"
                 print str(e)
-        else:
-            curve = Curve([],[])
-            dragline = DraggableLine(curve)
-            dragline.connect()
 
     def set_increment(self, increment):
         self.track.set_increment(increment)
@@ -252,12 +170,16 @@ class TracksPanel(QWidget):
     def add_track_window(self, track_window):
         self.tracks_layout.addWidget(track_window)
         self.track_windows.append(track_window)
+        self.connect(self, SIGNAL("change_depth"), 
+                     track_window.set_increment)
 
     def remove_track(self):
         right_most = self.track_windows[-1]
         right_most.hide()
         self.tracks_layout.removeWidget(right_most)
         self.track_windows = self.track_windows[:-1]
+        self.disconnect(self, SIGNAL("change_depth"), 
+                        right_most.set_increment)
         self.resize_after_remove()
 
     def add_new_track(self):
@@ -279,4 +201,4 @@ class TracksPanel(QWidget):
 
     def change_depth(self, increment):
         self.increment = increment
-        each(self.track_windows, lambda tw: tw.set_increment(increment))
+        self.emit(SIGNAL("change_depth"), self.increment)
