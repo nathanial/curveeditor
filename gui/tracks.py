@@ -9,9 +9,9 @@ from numpy import arange, sin, pi
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from util import times, each
+from util import times, each, lfind
 from gui.gutil import minimum_size_policy, fixed_size_policy
-from gui.menus import TrackContextMenu, TrackColorMenu
+from gui.menus import CurvesContextMenu
 from gui.curve import Curve
 
 class Track(FigureCanvas):
@@ -69,7 +69,7 @@ class TrackButtonPanel(QWidget):
         self.panel_layout.addWidget(self.curve_boxes[0])
         self.connect(self.curve_boxes[0], 
                      SIGNAL("currentIndexChanged(QString)"),
-                     lambda str: self.track_window.change_curve(str, 0))
+                     lambda name: self.track_window.change_curve(name, 0))
         
         self.curve_boxes[0].addItems(self.track_window.curves)
 
@@ -78,14 +78,15 @@ class TrackButtonPanel(QWidget):
             cb.clear()
             cb.addItems(curves)
 
-    def add_curve_box(self):
+    def add_curve_box(self, curve_name):
         curve_box = QComboBox(self)
-        curve_box.addItems(self.track_window.curves)
+        curve_box.addItems(self.track_window.pos_curves)
+        curve_box.setCurrentIndex(self.track_window.pos_curves.index(curve_name))
         self.curve_boxes.append(curve_box)
         self.panel_layout.addWidget(curve_box)
-        self.connect(self.curve_boxes,
+        self.connect(self.curve_boxes[-1],
                      SIGNAL("currentIndexChanged(QString)"),
-                     self.track_window.change_curve, len(self.curve_boxes) - 1)
+                     lambda name: self.track_window.change_curve(name, len(self.curve_boxes) - 1))
     
     def remove_curve_box(self):
         right_most = self.curve_boxes[-1]
@@ -109,7 +110,6 @@ class TrackWindow(QWidget):
 
         self.track = Track(self, width=4, height=8)        
         self.button_panel = TrackButtonPanel(self)
-        self.track_context_menu = TrackContextMenu(self)
 
         layout = QVBoxLayout(self)
         layout.addWidget(self.button_panel)
@@ -119,8 +119,8 @@ class TrackWindow(QWidget):
     def las_update(self, las_file):
         if not las_file == None:
             self.las_file = las_file
-            self.curves = self.las_file.curve_header.mnemonics()
-            self.button_panel.update_curves(self.curves)
+            self.pos_curves = self.las_file.curve_header.mnemonics()
+            self.button_panel.update_curves(self.pos_curves)
 
         self.repaint()
 
@@ -130,17 +130,35 @@ class TrackWindow(QWidget):
                 xfield = getattr(self.las_file, str(curve_name + "_field"))
                 yfield = self.las_file.depth_field
 
-                curve = Curve(xfield,yfield,picker=5)
+                curve = Curve(str(curve_name),xfield,yfield,picker=5)
                 curve.set_color(self.colors[index])
                 curve.set_marker(self.markers[index])
                 curve.connect_draggable(self.track)
 
                 self.track.switch_curve(curve, index)
-                self.curves[index] = curve
+                if len(self.curves) <= index:
+                    self.curves.append(curve)
+                else:
+                    self.curves[index] = curve
                 self.repaint()
             except AttributeError, e:
                 print "Could not change curve: Attribute Error"
                 print str(e)
+
+    def add_new_curve(self):
+        curve_name = lfind(self.pos_curves, lambda pc: not pc == self.curves[0].curve_name)
+        xfield = getattr(self.las_file, str(curve_name + "_field"))
+        yfield = self.las_file.depth_field
+        curve = Curve(str(curve_name),xfield,yfield,picker=5)
+        self.colors.append("b")
+        self.markers.append("None")
+        curve.set_color("b")
+        curve.set_marker("None")
+        curve.connect_draggable(self.track)
+        self.track.add_curve(curve)
+        self.curves.append(curve)
+        self.button_panel.add_curve_box(curve_name)
+        self.repaint()
 
     def set_increment(self, increment):
         self.track.set_increment(increment)
@@ -156,7 +174,10 @@ class TrackWindow(QWidget):
         self.track.draw()
 
     def contextMenuEvent(self, event):
-        self.track_context_menu.popup(event.globalPos())
+        self.curves_context_menu = CurvesContextMenu(self)
+        print "created context menu"
+        print "event pos = %s " % event.globalPos()
+        self.curves_context_menu.popup(event.globalPos())
 
 class TracksPanel(QWidget):
     def __init__(self, parent = None):

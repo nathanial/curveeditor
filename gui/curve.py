@@ -2,7 +2,8 @@ from las.file import LasField
 from matplotlib.lines import Line2D
 
 class Curve(Line2D):
-    def __init__(self, xfield = None, yfield = None, *args, **kwargs):
+    def __init__(self,curve_name, xfield = None, yfield = None, *args, **kwargs):
+        self.curve_name = curve_name
         self.xfield = xfield
         self.yfield = yfield
         self.press = None
