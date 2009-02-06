@@ -7,7 +7,6 @@ from PyQt4.QtGui import QMainWindow, QMenu, QWidget,\
 from numpy import arange, sin, pi
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from gui.tracks import Track, DraggableLine, TrackWindow
 from util import each
 from PyQt4.QtCore import SIGNAL
 
@@ -51,5 +50,28 @@ class TracksMenu(QMenu):
         
     def removeTrack(self):
         self.emit(SIGNAL("remove_track"))
-        
-        
+                
+class TrackContextMenu(QMenu):
+    def __init__(self, track_window):
+        QMenu.__init__(self, track_window)
+        self.track_window = track_window
+        self.track_color_menu = TrackColorMenu(track_window)
+        self.track_marker_menu = TrackMarkerMenu(track_window)
+        self.addMenu(self.track_color_menu)
+        self.addMenu(self.track_marker_menu)
+
+class TrackColorMenu(QMenu):
+    def __init__(self, track_window):
+        QMenu.__init__(self, "Color", track_window)
+        self.track_window = track_window
+        self.addAction('&Red', lambda: self.track_window.change_color("r",0))
+        self.addAction('&Blue', lambda: self.track_window.change_color("b",0))
+        self.addAction('&Green', lambda: self.track_window.change_color("g",0))    
+
+class TrackMarkerMenu(QMenu):
+    def __init__(self, track_window):
+        QMenu.__init__(self, "Marker", track_window)
+        self.track_window = track_window
+        self.addAction('&None', lambda: self.track_window.change_marker("None",0))
+        self.addAction('&Circle', lambda: self.track_window.change_marker("o",0))
+        self.addAction('&Triangle', lambda: self.track_window.change_marker("^",0))

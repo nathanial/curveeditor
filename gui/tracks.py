@@ -11,6 +11,8 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from util import times, each
 from gui.gutil import minimum_size_policy, fixed_size_policy
+from gui.menus import TrackContextMenu, TrackColorMenu
+from gui.curve import Curve
 
 class DraggableLine(object):
     def __init__(self, line, line_change_listeners = []):
@@ -65,27 +67,46 @@ class Track(FigureCanvas):
         self.fig = Figure(figsize=(width,height), dpi=dpi)
         self.axes = self.fig.add_subplot(111)
         self.axes.hold(False)
+        self.curves = []
         self.increment = 0
-        self.xs = []
-        self.ys = []
 
         FigureCanvas.__init__(self, self.fig)
         self.setParent(parent)
         fixed_size_policy(self)
 
-    def plot(self, xs, ys, *args, **kwargs):
-        self.xs = xs
-        self.ys = ys
-        ret = self.axes.plot(xs, ys, *args, **kwargs)
-        if not ys == []:
-            self.ymin = min(ys)
-            self.yrange = max(ys) - self.ymin
+#    def plot(self, xs, ys, *args, **kwargs):
+#        self.xs = xs
+#        self.ys = ys
+#        ret = self.axes.plot(xs, ys, *args, **kwargs)
+#        if not ys == []:
+#            self.ymin = min(ys)
+#            self.yrange = max(ys) - self.ymin
+#        else:
+#            self.ymin = 0
+#            self.yrange = 0
+#        self._reset_ylim()
+#        self.draw()
+#        return ret
+
+    def switch_curve(self, curve, index):
+        self.axes.clear()
+        if len(self.curves) == 0:
+            self.curves.append(curve)
         else:
-            self.ymin = 0
-            self.yrange = 0
-        self._reset_ylim()
+            self.curves[index] = curve
+        each(self.curves, self.axes.add_line)
+        self.axes.autoscale_view(scaley=False)
+        if len(self.curves) <= 1:
+            self.ymin = min(curve.ys)
+            self.yrange = max(curve.ys) - self.ymin
+            self._reset_ylim()
         self.draw()
-        return ret
+
+    def add_curve(self, curve):
+        self.curves.append(curve)
+        self.axes.add_line(curve)
+        self.axes.autoscale_view(scaley=False)
+        self.draw()
 
     def set_increment(self, increment):
         self.increment = increment
@@ -110,77 +131,58 @@ class LasFileLineChangeListener:
         times(len(xs), setx)
         times(len(ys), sety)
 
-class TrackPropertiesDialog(QDialog):
-    def __init__(self, parent, track_window):
-        QDialog.__init__(self, parent)
-        self.track_window = track_window
-        self.dialog_layout = QHBoxLayout(self)
-        self.setup_color_panel()
-
-    def setup_color_panel(self):
-        self.color_panel = QWidget(self)
-        self.dialog_layout.addWidget(self.color_panel)
-        layout = QVBoxLayout(self.color_panel)
-        self.red = QRadioButton("red", self.color_panel)
-        self.blue = QRadioButton("blue", self.color_panel)
-        self.green = QRadioButton("green", self.color_panel)
-        each([self.red,self.blue,self.green], lambda c: layout.addWidget(c))
-        self.connect(self.red,
-                     SIGNAL("clicked()"),
-                     lambda: self.track_window.change_color("r"))
-        self.connect(self.blue,
-                     SIGNAL("clicked()"),
-                     lambda: self.track_window.change_color("b"))
-        self.connect(self.green,
-                     SIGNAL("clicked()"),
-                     lambda: self.track_window.change_color("g"))
-        self.updateGeometry()
-        self.adjustSize()
-
-
 class TrackButtonPanel(QWidget):
     def __init__(self, track_window):
         QWidget.__init__(self, track_window)
         minimum_size_policy(self)
         self.track_window = track_window
-        self.curve_box = QComboBox(self)
-        self.properties_button = QPushButton("Properties",self)
-        layout = QHBoxLayout(self)
-        layout.addWidget(self.curve_box)
-        layout.addWidget(self.properties_button)
-
-        self.connect(self.curve_box, 
+        self.curve_boxes = []
+        self.curve_boxes.append(QComboBox(self))
+        self.panel_layout = QVBoxLayout(self)
+        self.panel_layout.addWidget(self.curve_boxes[0])
+        self.connect(self.curve_boxes[0], 
                      SIGNAL("currentIndexChanged(QString)"),
-                     self.track_window.change_curve)
-        self.connect(self.properties_button,
-                     SIGNAL("clicked()"),
-                     self.show_properties_dialog)
-                     
-
-        self.curve_box.addItems(self.track_window.curves)
+                     lambda str: self.track_window.change_curve(str, 0))
+        
+        self.curve_boxes[0].addItems(self.track_window.curves)
 
     def update_curves(self, curves):
-        self.curve_box.clear()
-        self.curve_box.addItems(curves)
+        for cb in self.curve_boxes:
+            cb.clear()
+            cb.addItems(curves)
 
-    def show_properties_dialog(self):
-        properties_dialog = TrackPropertiesDialog(self, self.track_window)
-        properties_dialog.exec_()
+    def add_curve_box(self):
+        curve_box = QComboBox(self)
+        curve_box.addItems(self.track_window.curves)
+        self.curve_boxes.append(curve_box)
+        self.panel_layout.addWidget(curve_box)
+        self.connect(self.curve_boxes,
+                     SIGNAL("currentIndexChanged(QString)"),
+                     self.track_window.change_curve, len(self.curve_boxes) - 1)
+    
+    def remove_curve_box(self):
+        right_most = self.curve_boxes[-1]
+        right_most.hide()
+        self.panel_layout.removeWidget(right_most)
+        self.curve_boxes = self.curve_boxes[:-1]
+
 
 class TrackWindow(QWidget):
     def __init__(self, parent = None):
         QWidget.__init__(self, parent)
         fixed_size_policy(self)
 
-        self.color = "b"
+        self.colors = ["b"]
+        self.markers = ["None"]
         self.increment = 0        
-        self.curves = ["None"]
+        self.pos_curves = ["None"]
+        self.curves = []
         self.las_file = None
-        self.curve_line = None
         self.draggable_line = None
 
         self.track = Track(self, width=4, height=8)        
         self.button_panel = TrackButtonPanel(self)
+        self.track_context_menu = TrackContextMenu(self)
 
         layout = QVBoxLayout(self)
         layout.addWidget(self.button_panel)
@@ -195,34 +197,48 @@ class TrackWindow(QWidget):
 
         self.repaint()
 
-    def change_curve(self, curve_name):
+    def change_curve(self, curve_name, index):
         if not curve_name == "None":
             try:
                 xfield = getattr(self.las_file, str(curve_name + "_field"))
                 yfield = self.las_file.depth_field
                 xs = xfield.to_list()
                 ys = yfield.to_list()
-                self.curve_line, = self.track.plot(xs,ys,self.color + "-", picker=5, scaley=False)
+
+                curve = Curve(xs,ys,picker=5)#,scaley=False)
+                curve.set_color(self.colors[index])
+                curve.set_marker(self.markers[index])
+
+                self.track.switch_curve(curve, index)
+                self.curves[index] = curve
+
                 listener = LasFileLineChangeListener(xfield, yfield)                                                     
-                self.draggable_line = DraggableLine(self.curve_line, [listener])
-                self.draggable_line.connect()                
+                dragline = DraggableLine(curve, [listener])
+                dragline.connect()                
                 self.repaint()
-            except AttributeError:
-                self.curve_line, = self.track.plot([], [])
-                self.draggable_line = DraggableLine(self.curve_line)
-                self.draggable_line.connect()
+            except AttributeError, e:
+                print "Could not change curve: Attribute Error"
+                print str(e)
         else:
-            self.curve_line, = self.track.plot([],[])
-            self.draggable_line = DraggableLine(self.curve_line)
-            self.draggable_line.connect()
+            curve = Curve([],[])
+            dragline = DraggableLine(curve)
+            dragline.connect()
 
     def set_increment(self, increment):
         self.track.set_increment(increment)
 
-    def change_color(self, color):
-        self.color = color
-        self.curve_line.set_color(color)
+    def change_color(self, color, index):
+        self.colors[index] = color
+        self.curves[index].set_color(color)
         self.track.draw()
+
+    def change_marker(self, marker, index):
+        self.markers[index] = marker
+        self.curves[index].set_marker(marker)
+        self.track.draw()
+
+    def contextMenuEvent(self, event):
+        self.track_context_menu.popup(event.globalPos())
 
 class TracksPanel(QWidget):
     def __init__(self, parent = None):
