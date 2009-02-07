@@ -49,7 +49,6 @@ class Track(FigureCanvas):
     def set_increment(self, increment):
         self.increment = increment
         self._reset_ylim()
-        self.draw()
 
     def _reset_ylim(self):
         self.axes.set_ylim(self.ymin + self._percentage_increment(),
@@ -187,20 +186,16 @@ class TracksPanel(QWidget):
         self.tracks_layout = QHBoxLayout(self)
         self.las_file = None
         self.increment = 0
-    
+        
     def add_track_window(self, track_window):
         self.tracks_layout.addWidget(track_window)
         self.track_windows.append(track_window)
-        self.connect(self, SIGNAL("change_depth"), 
-                     track_window.set_increment)
 
     def remove_track(self):
         right_most = self.track_windows[-1]
         right_most.hide()
         self.tracks_layout.removeWidget(right_most)
         self.track_windows = self.track_windows[:-1]
-        self.disconnect(self, SIGNAL("change_depth"), 
-                        right_most.set_increment)
         self.resize_after_remove()
 
     def add_new_track(self):
@@ -222,4 +217,7 @@ class TracksPanel(QWidget):
 
     def change_depth(self, increment):
         self.increment = increment
-        self.emit(SIGNAL("change_depth"), self.increment)
+        for tw in self.track_windows:
+            tw.set_increment(increment)
+        for tw in self.track_windows:
+            tw.track.draw()
