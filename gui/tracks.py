@@ -37,7 +37,8 @@ class Track(FigureCanvas):
         if len(self.curves) <= 1:
             self.ymin = min(curve.yfield.to_list())
             self.yrange = max(curve.yfield.to_list()) - self.ymin
-            self._reset_ylim()
+        
+        self._reset_ylim()
         self.draw()
 
     def add_curve(self, curve):
@@ -107,7 +108,7 @@ class TrackWindow(QWidget):
         self.las_file = None
         self.draggable_line = None
 
-        self.track = Track(self, width=4, height=8)        
+        self.track = Track(self, width=4, height=6)        
         self.button_panel = TrackButtonPanel(self)
 
         layout = QVBoxLayout(self)
