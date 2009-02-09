@@ -1,6 +1,6 @@
 import re
 import new
-from util import lfind, tuplize
+from util import lfind, tuplize, read_file
 
 def preprocess_str(obj):
     if isinstance(obj, str):
@@ -18,7 +18,7 @@ class LasFile(object):
         self.well_header = well_header
         self.curve_header = curve_header
         self.parameter_header = parameter_header
-        self.fields = LasField.rows_to_fields(data_rows, self.curve_header)
+        self.fields = LasField.from_rows(data_rows, self.curve_header)
 
         for mnemonic in self.curve_header.mnemonics():
             field = LasField.find_with_mnemonic(mnemonic, self.fields)
@@ -31,6 +31,11 @@ class LasFile(object):
                 self.curve_header == that.curve_header and 
                 self.parameter_header == that.parameter_header and
                 self.fields == that.fields)
+
+    @staticmethod
+    def from_(path):
+        from parser import parse
+        return parse("las_file", read_file(path))
 
     def to_las(self):
         return (self.version_header.to_las() +
@@ -104,7 +109,7 @@ class LasField(object):
         return self.data
 
     @staticmethod
-    def rows_to_fields(data_rows, curve_header):
+    def from_rows(data_rows, curve_header):
         ds = curve_header.descriptors
         cols = len(ds)
         return [LasField(ds[i],map(lambda r: r[i], data_rows))
@@ -120,3 +125,20 @@ class LasField(object):
     @staticmethod
     def find_with_mnemonic(mnemonic, fields):
         return lfind(fields, lambda f: f.descriptor.mnemonic.lower() == mnemonic)
+
+class TransformedLasField(LasField):
+    def __init__(self, lasfield, scale_factor):
+        self.lasfield = lasfield
+        LasField.__init__(self, lasfield.descriptor, lasfield.data)
+
+    def set_at(self, idx, val):
+        self.data[idx] = val / (scale_factor * 1.0)
+    
+    def get_at(self, idx):
+        return self.data[idx] * scale_factor
+
+    def to_list(self):
+        return [x * scale_factor for x in self.data]
+
+
+

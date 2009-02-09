@@ -218,7 +218,6 @@ class TracksPanel(QWidget):
 
     def change_depth(self, increment):
         self.increment = increment
-        for tw in self.track_windows:
-            tw.set_increment(increment)
-        for tw in self.track_windows:
-            tw.track.draw()
+        def each_tw(fn): each(self.track_windows, fn)
+        each_tw(lambda tw: tw.set_increment(increment))
+        each_tw(lambda tw: tw.track.draw())

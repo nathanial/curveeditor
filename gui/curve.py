@@ -37,4 +37,4 @@ class Curve(Line2D):
 
     def drag_on_release(self, event):
         self.press = None
-        self.canvas.draw()    
+        self.canvas.draw()

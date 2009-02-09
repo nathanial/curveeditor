@@ -1,4 +1,4 @@
-
+from __future__ import with_statement
 def lfind(ls, pred):
     for i in range(0, len(ls)):
         if pred(ls[i]): return ls[i]
@@ -37,3 +37,21 @@ def ident(x): return x
 
 def assertAll(*conditions):
     assert forall(conditions, ident)
+
+def read_file(path):
+    text = ""
+    with open(path) as f:
+        for line in f:
+            text += line
+    return text
+
+def partial(fn, *args):
+    def p(*rest):
+        total = args + rest
+        return fn(*total)
+    return p
+
+def fixed_point(data, fn):
+    return data == fn(data)
+    
+
