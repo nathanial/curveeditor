@@ -54,4 +54,5 @@ def partial(fn, *args):
 def fixed_point(data, fn):
     return data == fn(data)
     
-
+def float_eq(a,b):
+    return a - b < 0.001

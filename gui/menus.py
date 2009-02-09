@@ -54,12 +54,11 @@ class TracksMenu(QMenu):
 class CurvesContextMenu(QMenu):
     def __init__(self, track_window):
         QMenu.__init__(self, track_window)
-        curves = track_window.curves
+        curves = track_window.curves()
         
         self.addAction('&Add Curve', track_window.add_new_curve)
         
         def create_and_add(i):
-            print "creating and adding"
             menu = CurveContextMenu(self,curves[i].curve_name, i, track_window)
             self.addMenu(menu)
         times(len(curves), create_and_add)

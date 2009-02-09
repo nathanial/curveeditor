@@ -15,6 +15,9 @@ well_header = WellHeader([
         Descriptor(mnemonic="COMP", description="COMPANY"),
         Descriptor(mnemonic="DATE", data="Monday, January 26 2009 14:04:02 : DATE")])
 
+depths = [123.123, 124.124, 125.521, 99099.0, 
+          99123, 8542, 123.02, 347.902, 111.2]
+
 text = {}
 text['well_header'] = """
 ~Well

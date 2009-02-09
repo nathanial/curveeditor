@@ -106,7 +106,7 @@ class LasField(object):
     def __repr__(self): return self.__str__()
 
     def to_list(self):
-        return self.data
+        return list(self.data)
 
     @staticmethod
     def from_rows(data_rows, curve_header):
@@ -127,18 +127,21 @@ class LasField(object):
         return lfind(fields, lambda f: f.descriptor.mnemonic.lower() == mnemonic)
 
 class TransformedLasField(LasField):
-    def __init__(self, lasfield, scale_factor):
+    def __init__(self, lasfield, scale, offset):
         self.lasfield = lasfield
+        self.scale = scale
+        self.offset = offset
         LasField.__init__(self, lasfield.descriptor, lasfield.data)
 
     def set_at(self, idx, val):
-        self.data[idx] = val / (scale_factor * 1.0)
+        self.data[idx] = val / (self.scale * 1.0) - self.offset
     
     def get_at(self, idx):
-        return self.data[idx] * scale_factor
+        return self.data[idx] * self.scale + self.offset
 
     def to_list(self):
-        return [x * scale_factor for x in self.data]
+        return [x * self.scale + self.offset for x in self.data]
 
-
+def transform(field, scale, offset):
+    return TransformedLasField(field, scale, offset)
 

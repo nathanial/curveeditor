@@ -1,8 +1,7 @@
 from test.test_util import test
 from las.file import *
 from las.headers import *
-from util import subdivide
-from util import partial
+from util import subdivide, partial, times, float_eq
 import parser
 from test import data
 
@@ -10,6 +9,7 @@ tests = []
 test = partial(test, tests)
 lpath = "test.las"
 
+#Test Attributes
 @test
 def header_get_attributes():
     ch = data.curve_header
@@ -32,6 +32,7 @@ def descriptor_to_las():
     nd = parser.parse("descriptor", d.to_las())
     assert d == nd
     
+#Test Writing
 @test
 def data_to_las():
     ch = data.curve_header
@@ -54,7 +55,35 @@ def write_lasfile():
     lf =  LasFile.from_(lpath)
     lf.depth_field[0] = "yack"
     assert "yack" in lf.to_las()
-    
+
+#Test Transformed Las Field
+
+@test
+def test_lasfield():
+    field = LasField(data.curve_header.descriptors[0], data.depths)
+    for i in range(0, len(data.depths)):
+        assert field[i] == data.depths[i]    
+
+@test
+def test_transformed_lasfield1():
+    field = LasField(data.curve_header.descriptors[0], list(data.depths))
+    scale = 3.3
+    offset = 0 
+    tfield = TransformedLasField(field, scale, offset)
+    for i in range(0, len(data.depths)):
+        assert tfield[i] == data.depths[i] * scale
+
+@test
+def test_transformed_lasfield2():
+    field = LasField(data.curve_header.descriptors[0], list(data.depths))
+    scale = 4.53
+    offset = 0
+    tfield = TransformedLasField(field, scale, offset)
+    for i in range(0, len(data.depths)): 
+        tfield[i] = tfield[i] + 1 * scale
+    for i in range(0, len(data.depths)):
+        assert float_eq(tfield[i] / scale, data.depths[i] + 1)
+
 if __name__ == "__main__":
     for test in tests:
         test()

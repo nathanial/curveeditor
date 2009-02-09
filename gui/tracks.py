@@ -9,10 +9,11 @@ from numpy import arange, sin, pi
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from util import times, each, lfind
+from util import times, each, lfind, partial
+from las.file import transform
 from gui.gutil import minimum_size_policy, fixed_size_policy
 from gui.menus import CurvesContextMenu
-from gui.curve import Curve
+from gui.curve import Curve, TransformedCurve
 
 class Track(FigureCanvas):
     def __init__(self, parent = None, width=5, height=4, dpi=100):
@@ -21,6 +22,10 @@ class Track(FigureCanvas):
         self.axes.hold(False)
         self.curves = []
         self.increment = 0
+        self.lowest_depth = None
+        self.highest_depth = None
+        self.colors = ["b"]
+        self.markers = ["None"]
 
         FigureCanvas.__init__(self, self.fig)
         self.setParent(parent)
@@ -28,35 +33,98 @@ class Track(FigureCanvas):
 
     def switch_curve(self, curve, index):
         self.axes.clear()
-        if len(self.curves) == 0:
-            self.curves.append(curve)
+        if self.first_curve():
+            self.lowest_depth = curve.ymin()
+            self.highest_depth = curve.ymax()
+            self._reset_ylim()
+            self.curves.append(self._render_curve(curve, add_curve=True))
+            self.draw()
         else:
             self.curves[index] = curve
-        each(self.curves, self.axes.add_line)
-        self.axes.autoscale_view(scaley=False)
-        if len(self.curves) <= 1:
-            self.ymin = min(curve.yfield.to_list())
-            self.yrange = max(curve.yfield.to_list()) - self.ymin
-        
-        self._reset_ylim()
-        self.draw()
+            print "--------"
+            for i in range(0, len(self.curves)):
+                self.curves[i] = self._render_curve(self.curves[i])
+            self.draw()
 
     def add_curve(self, curve):
-        self.curves.append(curve)
+        self.curves.append(self._render_curve(curve, add_curve = True))
+        self.draw()
+
+    def _render_curve(self, curve, add_curve = False):
+        if curve.draggable: curve.disconnect_draggable()
+        if isinstance(curve, TransformedCurve): curve = curve.original()
+
+        xscale = Track.xscale(curve, self.original_curves(), add_curve)
+        xoffset = Track.xoffset(curve, self.original_curves(), add_curve)
+        if add_curve:
+            print "xmin %s for %s" % (Track.xmin(self.original_curves() + [curve]),
+                                      curve.curve_name)
+        else:
+            print "xmin %s for %s" % (Track.xmin(self.original_curves()),
+                                      curve.curve_name)
+                                      
+        print "xscale %s for %s" % (xscale, curve.curve_name)
+        print "xoffset %s for %s" % (xoffset, curve.curve_name)
+
+        curve = curve.transform(xscale = xscale, xoffset = xoffset)
         self.axes.add_line(curve)
         self.axes.autoscale_view(scaley=False)
-        self.draw()
+        curve.connect_draggable()
+        return curve
 
     def set_increment(self, increment):
         self.increment = increment
         self._reset_ylim()
 
     def _reset_ylim(self):
-        self.axes.set_ylim(self.ymin + self._percentage_increment(),
-                           self.ymin + 100 + self._percentage_increment())
+        self.axes.set_ylim(self.lowest_depth + self._percentage_increment(),
+                           self.lowest_depth + 100 + self._percentage_increment())
 
     def _percentage_increment(self):
-        return ((self.increment + 1) / 100.0) * self.yrange
+        return ((self.increment + 1) / 100.0) * self.depth_range()
+
+    def depth_range(self):
+        return self.highest_depth - self.lowest_depth
+
+    def first_curve(self):
+        return len(self.curves) == 0
+
+    def original_curves(self):
+        return Track.originals(self.curves)
+
+    @staticmethod
+    def xrange(curves):        
+        return max([c.xrange() for c in curves])
+
+    @staticmethod
+    def xmin(curves):
+        return min([c.xmin() for c in curves])
+
+    @staticmethod
+    def xmax(curves):
+        return max([c.xmax() for c in curves])
+
+    @staticmethod
+    def xscale(curve, curves, add_curve = False):
+        if add_curve:        
+            curves = curves + [curve]
+        return Track.xrange(curves) / curve.xrange()
+    
+    @staticmethod
+    def xoffset(curve, curves, add_curve = False):
+        if add_curve:
+            curves = curves + [curve]
+        return (Track.xmax(curves) - curve.xmax()) / 2.0
+
+    @staticmethod
+    def originals(curves):
+        acc = []
+        for curve in curves:
+            if isinstance(curve, TransformedCurve):
+                acc.append(curve.original())
+            else:
+                acc.append(curve)
+        return acc
 
 class TrackButtonPanel(QWidget):
     def __init__(self, track_window):
@@ -71,7 +139,7 @@ class TrackButtonPanel(QWidget):
                      SIGNAL("currentIndexChanged(QString)"),
                      lambda name: self.track_window.change_curve(name, 0))
         
-        self.curve_boxes[0].addItems(self.track_window.curves)
+        self.curve_boxes[0].addItems(self.track_window.curves())
 
     def update_curves(self, curves):
         for cb in self.curve_boxes:
@@ -100,11 +168,8 @@ class TrackWindow(QWidget):
         QWidget.__init__(self, parent)
         fixed_size_policy(self)
 
-        self.colors = ["b"]
-        self.markers = ["None"]
         self.increment = 0        
         self.pos_curves = ["None"]
-        self.curves = []
         self.las_file = None
         self.draggable_line = None
 
@@ -130,33 +195,27 @@ class TrackWindow(QWidget):
                 xfield = getattr(self.las_file, str(curve_name + "_field"))
                 yfield = self.las_file.depth_field
 
-                curve = Curve(str(curve_name),xfield,yfield,picker=5)
-                curve.set_color(self.colors[index])
-                curve.set_marker(self.markers[index])
-                curve.connect_draggable(self.track)
+                curve = Curve(str(curve_name),self.track,xfield,yfield,picker=5)
+                curve.set_color(self.track.colors[index])
+                curve.set_marker(self.track.markers[index])
 
                 self.track.switch_curve(curve, index)
-                if len(self.curves) <= index:
-                    self.curves.append(curve)
-                else:
-                    self.curves[index] = curve
                 self.repaint()
             except AttributeError, e:
                 print "Could not change curve: Attribute Error"
                 print str(e)
 
     def add_new_curve(self):
-        curve_name = lfind(self.pos_curves, lambda pc: not pc == self.curves[0].curve_name)
+        curve_name = self.track.curves[0].curve_name
         xfield = getattr(self.las_file, str(curve_name + "_field"))
         yfield = self.las_file.depth_field
-        curve = Curve(str(curve_name),xfield,yfield,picker=5)
-        self.colors.append("b")
-        self.markers.append("None")
+        
+        curve = Curve(str(curve_name), self.track,xfield,yfield,picker=5)
+        self.track.colors.append("b")
+        self.track.markers.append("None")
         curve.set_color("b")
         curve.set_marker("None")
-        curve.connect_draggable(self.track)
         self.track.add_curve(curve)
-        self.curves.append(curve)
         self.button_panel.add_curve_box(curve_name)
         self.repaint()
 
@@ -164,20 +223,21 @@ class TrackWindow(QWidget):
         self.track.set_increment(increment)
 
     def change_color(self, color, index):
-        self.colors[index] = color
-        self.curves[index].set_color(color)
+        self.track.colors[index] = color
+        self.curves()[index].set_color(color)
         self.track.draw()
 
     def change_marker(self, marker, index):
-        self.markers[index] = marker
-        self.curves[index].set_marker(marker)
+        self.track.markers[index] = marker
+        self.curves()[index].set_marker(marker)
         self.track.draw()
 
     def contextMenuEvent(self, event):
         self.curves_context_menu = CurvesContextMenu(self)
-        print "created context menu"
-        print "event pos = %s " % event.globalPos()
         self.curves_context_menu.popup(event.globalPos())
+
+    def curves(self):
+        return self.track.curves
 
 class TracksPanel(QWidget):
     def __init__(self, parent = None):
