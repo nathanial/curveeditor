@@ -38,11 +38,11 @@ def data_to_las():
     ch = data.curve_header
     cols = len(ch.descriptors)
     data_rows = subdivide(parser.parse("data_rows", data.text['las_data']), cols)
-    fields = LasField.from_rows(data_rows, ch)
+    curves = LasCurve.from_rows(data_rows, ch)
 
-    ndata_rows = subdivide(parser.parse("data_rows", LasField.to_las(fields)), cols)
-    nfields = LasField.from_rows(ndata_rows, data.curve_header)
-    assert fields == nfields
+    ndata_rows = subdivide(parser.parse("data_rows", LasCurve.to_las(curves)), cols)
+    ncurves = LasCurve.from_rows(ndata_rows, data.curve_header)
+    assert curves == ncurves
 
 @test
 def lasfile_to_las():
@@ -60,25 +60,25 @@ def write_lasfile():
 
 @test
 def test_lasfield():
-    field = LasField(data.curve_header.descriptors[0], data.depths)
+    field = LasCurve(data.curve_header.descriptors[0], data.depths)
     for i in range(0, len(data.depths)):
         assert field[i] == data.depths[i]    
 
 @test
 def test_transformed_lasfield1():
-    field = LasField(data.curve_header.descriptors[0], list(data.depths))
+    field = LasCurve(data.curve_header.descriptors[0], list(data.depths))
     scale = 3.3
     offset = 0 
-    tfield = TransformedLasField(field, scale, offset)
+    tfield = TransformedLasCurve(field, scale, offset)
     for i in range(0, len(data.depths)):
         assert tfield[i] == data.depths[i] * scale
 
 @test
 def test_transformed_lasfield2():
-    field = LasField(data.curve_header.descriptors[0], list(data.depths))
+    field = LasCurve(data.curve_header.descriptors[0], list(data.depths))
     scale = 4.53
     offset = 0
-    tfield = TransformedLasField(field, scale, offset)
+    tfield = TransformedLasCurve(field, scale, offset)
     for i in range(0, len(data.depths)): 
         tfield[i] = tfield[i] + 1 * scale
     for i in range(0, len(data.depths)):

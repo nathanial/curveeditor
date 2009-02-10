@@ -1,4 +1,4 @@
-from las.file import LasField, transform
+from las.file import LasCurve, transform
 from matplotlib.lines import Line2D
 
 class Curve(Line2D):
@@ -11,6 +11,8 @@ class Curve(Line2D):
         self._kwargs = kwargs
         self.press = None
         self.draggable = False
+        self.color = "b"
+        self.marker = "None"
         Line2D.__init__(self, xfield.to_list(), yfield.to_list(), *args, **kwargs)
 
     def connect_draggable(self):
@@ -49,12 +51,14 @@ class Curve(Line2D):
         self.draggable = False
 
     def transform(self,xscale = 1.0, yscale = 1.0, xoffset = 0, yoffset = 0):
-        return TransformedCurve(
-            self.curve_name,
-            self.canvas,
-            self.xfield, xscale, xoffset,
-            self.yfield, yscale, yoffset,
-            *self._args, **self._kwargs)
+        curve = TransformedCurve(self.curve_name,
+                                 self.canvas,
+                                 self.xfield, xscale, xoffset,
+                                 self.yfield, yscale, yoffset,
+                                 *self._args, **self._kwargs)
+        curve.set_color(self.color)
+        curve.set_marker(self.marker)
+        return curve
                      
     def yrange(self):
         return self.ymax() - self.ymin()
@@ -74,6 +78,14 @@ class Curve(Line2D):
     def xmin(self):
         return min(self.xfield.to_list())
 
+    def set_color(self, color):
+        self.color = color
+        return Line2D.set_color(self, color)
+    
+    def set_marker(self, marker):
+        self.marker = marker
+        return Line2D.set_marker(self, marker)
+
 class TransformedCurve(Curve):
     def __init__(self, curve_name, canvas, 
                  xfield, xscale, xoffset, 
@@ -87,16 +99,21 @@ class TransformedCurve(Curve):
                        *args, **kwargs)
 
     def transform(self, xscale = 1.0, yscale = 1.0, xoffset = 0, yoffset = 0):
-        return TransformedCurve(
-            self.curve_name, 
-            self.canvas,
-            self.original_xfield, xscale, xoffset,
-            self.original_yfield, yscale, yoffset,
-            *self._args, **self._kwargs)
+        curve = TransformedCurve(self.curve_name, 
+                                 self.canvas,
+                                 self.original_xfield, xscale, xoffset,
+                                 self.original_yfield, yscale, yoffset,
+                                 *self._args, **self._kwargs)
+        curve.set_color(self.color)
+        curve.set_marker(self.marker)
+        return curve
 
     def original(self):
-        return Curve(self.curve_name,
-                     self.canvas,
-                     self.original_xfield, 
-                     self.original_yfield,
-                     *self._args, **self._kwargs)
+        curve = Curve(self.curve_name,
+                      self.canvas,
+                      self.original_xfield, 
+                      self.original_yfield,
+                      *self._args, **self._kwargs)
+        curve.set_color(self.color)
+        curve.set_marker(self.marker)
+        return curve

@@ -24,8 +24,6 @@ class Track(FigureCanvas):
         self.increment = 0
         self.lowest_depth = None
         self.highest_depth = None
-        self.colors = ["b"]
-        self.markers = ["None"]
 
         FigureCanvas.__init__(self, self.fig)
         self.setParent(parent)
@@ -56,16 +54,6 @@ class Track(FigureCanvas):
 
         xscale = Track.xscale(curve, self.original_curves(), add_curve)
         xoffset = Track.xoffset(curve, self.original_curves(), add_curve)
-        if add_curve:
-            print "xmin %s for %s" % (Track.xmin(self.original_curves() + [curve]),
-                                      curve.curve_name)
-        else:
-            print "xmin %s for %s" % (Track.xmin(self.original_curves()),
-                                      curve.curve_name)
-                                      
-        print "xscale %s for %s" % (xscale, curve.curve_name)
-        print "xoffset %s for %s" % (xoffset, curve.curve_name)
-
         curve = curve.transform(xscale = xscale, xoffset = xoffset)
         self.axes.add_line(curve)
         self.axes.autoscale_view(scaley=False)
@@ -191,19 +179,14 @@ class TrackWindow(QWidget):
 
     def change_curve(self, curve_name, index):
         if not curve_name == "None":
-            try:
-                xfield = getattr(self.las_file, str(curve_name + "_field"))
-                yfield = self.las_file.depth_field
+            xfield = getattr(self.las_file, str(curve_name + "_field"))
+            yfield = self.las_file.depth_field
+            
+            curve = Curve(str(curve_name),self.track,xfield,yfield,picker=5)
+            
+            self.track.switch_curve(curve, index)
+            self.repaint()
 
-                curve = Curve(str(curve_name),self.track,xfield,yfield,picker=5)
-                curve.set_color(self.track.colors[index])
-                curve.set_marker(self.track.markers[index])
-
-                self.track.switch_curve(curve, index)
-                self.repaint()
-            except AttributeError, e:
-                print "Could not change curve: Attribute Error"
-                print str(e)
 
     def add_new_curve(self):
         curve_name = self.track.curves[0].curve_name
@@ -211,10 +194,6 @@ class TrackWindow(QWidget):
         yfield = self.las_file.depth_field
         
         curve = Curve(str(curve_name), self.track,xfield,yfield,picker=5)
-        self.track.colors.append("b")
-        self.track.markers.append("None")
-        curve.set_color("b")
-        curve.set_marker("None")
         self.track.add_curve(curve)
         self.button_panel.add_curve_box(curve_name)
         self.repaint()
@@ -223,12 +202,10 @@ class TrackWindow(QWidget):
         self.track.set_increment(increment)
 
     def change_color(self, color, index):
-        self.track.colors[index] = color
         self.curves()[index].set_color(color)
         self.track.draw()
 
     def change_marker(self, marker, index):
-        self.track.markers[index] = marker
         self.curves()[index].set_marker(marker)
         self.track.draw()
 

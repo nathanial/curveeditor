@@ -51,7 +51,7 @@ def test_curve_header():
 def test_las_data():
     cols = len(data.curve_header.descriptors)
     rows = subdivide(parser.parse("data_rows", data.text['las_data']), cols)
-    fields = LasField.from_rows(rows,data.curve_header)
+    curves = LasCurve.from_rows(rows,data.curve_header)
     
 if __name__ == "__main__":
     for test in tests:
