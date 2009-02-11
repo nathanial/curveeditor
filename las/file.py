@@ -44,6 +44,9 @@ class LasFile(object):
                 self.parameter_header.to_las() +
                 LasCurve.to_las(self.curves))
 
+    def curve_mnemonics(self):
+        return self.curve_header.mnemonics()
+
 class Descriptor(object):
     def __init__(self, mnemonic, unit = None, data = None, description = None):
         self.mnemonic = preprocess_str(mnemonic)

@@ -8,11 +8,33 @@ from PyQt4.QtGui import QMainWindow, QMenu, QWidget,\
 from numpy import arange, sin, pi
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from gui.tracks import Track, TrackWindow, TracksPanel
-from util import each
 from PyQt4.QtCore import SIGNAL
-from gui.menus import FileMenu, TracksMenu
+from util import each
 from gui.gutil import minimum_size_policy, fixed_size_policy
+
+class Registry(object):
+    def __init__(self):
+        self._lasfile = None
+        self.lasfile_listeners = []
+        self.filename = None
+
+    def get_lasfile(self):
+        return self._lasfile
+
+    def set_lasfile(self,lf):
+        self._lasfile = lf
+        for listener in self.lasfile_listeners:
+            listener()
+
+    def get_curve(self,name):
+        return getattr(self._lasfile, str(name + "_field"))
+
+    lasfile = property(fget = get_lasfile, fset = set_lasfile)
+
+registry = Registry()
+
+from gui.tracks import Track, TrackWindow, TracksPanel
+from gui.menus import FileMenu, TracksMenu
 
 class DepthSlider(QSlider):
     def __init__(self, parent = None):
@@ -28,7 +50,6 @@ class ApplicationWindow(QMainWindow):
         self.setWindowTitle("Curve Editor")
 
         self.file_menu = FileMenu(self)
-
         self.tracks_menu = TracksMenu(self)
 
         self.menuBar().addMenu(self.file_menu)
@@ -43,8 +64,6 @@ class ApplicationWindow(QMainWindow):
 
         self.tracks_panel = TracksPanel(self.main_widget)
         self.main_layout.addWidget(self.tracks_panel)
-        self.connect(self.file_menu, SIGNAL("file_changed"), 
-                     self.tracks_panel.send_to_tracks)
         self.connect(self.tracks_menu, SIGNAL("add_track"), 
                      self.tracks_panel.add_new_track)
         self.connect(self.tracks_menu, SIGNAL("remove_track"),
@@ -52,7 +71,7 @@ class ApplicationWindow(QMainWindow):
         self.connect(self.depth_slider, SIGNAL("valueChanged(int)"),
                      self.tracks_panel.change_depth)
         
-        self.tracks_panel.add_new_track()
+        self.tracks_panel.add_dummy_track()
         
         self.main_widget.setFocus()
         self.setCentralWidget(self.main_widget)

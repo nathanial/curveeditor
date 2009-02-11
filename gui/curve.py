@@ -1,7 +1,14 @@
 from las.file import LasCurve, transform
 from matplotlib.lines import Line2D
+from PyQt4 import QtGui, QtCore
+from gui.main import registry
+from PyQt4.QtGui import QMainWindow, QMenu, QWidget,\
+    QVBoxLayout, QApplication, QMessageBox, QHBoxLayout,\
+    QFileDialog, QSlider, QComboBox, QLayout, QPushButton,\
+    QDialog, QRadioButton, QLabel
+from gui.gutil import minimum_size_policy, fixed_size_policy
 
-class Curve(Line2D):
+class Plot(Line2D):
     def __init__(self,curve_name, canvas, xfield = None, yfield = None, *args, **kwargs):
         self.curve_name = curve_name
         self.canvas = canvas
@@ -34,10 +41,7 @@ class Curve(Line2D):
         ind = self.press
         if len(ind) > 1: ind = ind[0]
         self.xfield[ind] = event.xdata
-        self.yfield[ind] = event.ydata
-        
         self.set_xdata(self.xfield.to_list())
-        self.set_ydata(self.yfield.to_list())
         self.canvas.draw()
 
     def drag_on_release(self, event):
@@ -51,14 +55,17 @@ class Curve(Line2D):
         self.draggable = False
 
     def transform(self,xscale = 1.0, yscale = 1.0, xoffset = 0, yoffset = 0):
-        curve = TransformedCurve(self.curve_name,
-                                 self.canvas,
-                                 self.xfield, xscale, xoffset,
-                                 self.yfield, yscale, yoffset,
-                                 *self._args, **self._kwargs)
-        curve.set_color(self.color)
-        curve.set_marker(self.marker)
-        return curve
+        plot = TransformedPlot(self.curve_name,
+                               self.canvas,
+                               self.xfield, xscale, xoffset,
+                               self.yfield, yscale, yoffset,
+                               *self._args, **self._kwargs)
+        plot.set_color(self.color)
+        plot.set_marker(self.marker)
+        return plot
+
+    def untransform(self):
+        return self
                      
     def yrange(self):
         return self.ymax() - self.ymin()
@@ -86,34 +93,68 @@ class Curve(Line2D):
         self.marker = marker
         return Line2D.set_marker(self, marker)
 
-class TransformedCurve(Curve):
+class TransformedPlot(Plot):
     def __init__(self, curve_name, canvas, 
                  xfield, xscale, xoffset, 
                  yfield, yscale, yoffset, 
                  *args, **kwargs):
         self.original_xfield = xfield
         self.original_yfield = yfield
-        Curve.__init__(self, curve_name, canvas,
+        Plot.__init__(self, curve_name, canvas,
                        transform(xfield, xscale, xoffset),
                        transform(yfield, yscale, yoffset),
                        *args, **kwargs)
 
     def transform(self, xscale = 1.0, yscale = 1.0, xoffset = 0, yoffset = 0):
-        curve = TransformedCurve(self.curve_name, 
-                                 self.canvas,
-                                 self.original_xfield, xscale, xoffset,
-                                 self.original_yfield, yscale, yoffset,
-                                 *self._args, **self._kwargs)
+        curve = TransformedPlot(self.curve_name, 
+                                self.canvas,
+                                self.original_xfield, xscale, xoffset,
+                                self.original_yfield, yscale, yoffset,
+                                *self._args, **self._kwargs)
         curve.set_color(self.color)
         curve.set_marker(self.marker)
         return curve
 
-    def original(self):
-        curve = Curve(self.curve_name,
-                      self.canvas,
-                      self.original_xfield, 
-                      self.original_yfield,
-                      *self._args, **self._kwargs)
+    def untransform(self):
+        curve = Plot(self.curve_name,
+                     self.canvas,
+                     self.original_xfield, 
+                     self.original_yfield,
+                     *self._args, **self._kwargs)
         curve.set_color(self.color)
         curve.set_marker(self.marker)
         return curve
+
+class PlotInfo(QWidget):
+    def __init__(self, plot, button_panel):
+        QWidget.__init__(self, button_panel)
+        self.plot = plot
+        self.button_panel = button_panel
+        minimum_size_policy(self)
+        self.curve_box = QComboBox(self)
+
+        curve_names = registry.lasfile.curve_mnemonics()
+        index = curve_names.index(plot.curve_name)
+
+        self.curve_box.addItems(curve_names)
+        self.curve_box.setCurrentIndex(index)
+        QWidget.connect(self.curve_box, 
+                        SIGNAL("currentIndexChanged(int)"),
+                        self.changed_curve)
+
+        self.xmax_label = QLabel(str(plot.xmax()), self)
+        self.xmin_label = QLabel(str(plot.xmin()), self)
+        
+        self.layout = QHBoxLayout(self)
+        self.layout.addWidget(self.xmin_label)
+        self.layout.addWidget(self.curve_box)
+        self.layout.addWidget(self.xmax_label)
+
+        
+    def changed_curve(self, index):
+        x = registry.lasfile.lascurves[index]
+        y = registry.get_curve("depth")
+        old_plot = self.plot
+        new_plot = Plot(x.mnemonic, self.track, x, y, picker=5)
+        self.track.switch_plot(old_plot, new_plot)
+        self.plot = new_plot        
