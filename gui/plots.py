@@ -44,12 +44,14 @@ class Plot(Line2D):
     def drag_on_press(self, event):
         contains,attrd = self.contains(event)
         if not contains: return
+        print "attrd %s " % attrd
         self.press = attrd['ind']
 
     def drag_on_motion(self, event):
         if self.press is None: return
         ind = self.press
         if len(ind) > 1: ind = ind[0]
+        print "event %s " % event.xdata
         self.current_xfield[ind] = event.xdata
         self.set_xdata(self.current_xfield.to_list())
         self.canvas.draw()

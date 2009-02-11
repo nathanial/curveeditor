@@ -26,30 +26,21 @@ class TrackButtonPanel(QWidget):
         self.layout = QVBoxLayout(self)
 
     def add_plot_info(self, plot):
-        plot_info = PlotInfo(plot, self)
-        self.layout.addWidget(plot_info)
-        self.plot_infos.append(plot_info)
-        QWidget.connect(plot_info,
-                        SIGNAL("change_curve"),
-                        self.track.change_curve)
+        pi = self._build_plot_info(plot)
+        self.layout.addWidget(pi)
+        self.plot_infos.append(pi)
     
     def remove_plot_info(self, plot):
-        index = map(lambda pi: pi.plot, self.plot_infos).index(plot)
-        deleted = self.plot_infos[index]
+        deleted, index = self._destroy_plot_info(plot)
         del self.plot_infos[index]
         deleted.hide()
         self.layout.removeWidget(deleted)
 
     def swap_plot_info(self, old_plot, new_plot):
-        new_plot_info = PlotInfo(new_plot, self)
-        QWidget.connect(new_plot_info,
-                        SIGNAL("change_curve"),
-                        self.track.change_curve)
-        opindex = lindex(self.plot_infos,
-                         lambda pi: pi.plot == old_plot)
-        old_info = self.plot_infos[opindex]
+        new_info = self._build_plot_info(new_plot)
+        old_info, index = self._destroy_plot_info(old_plot)
         old_info.hide()
-        self.plot_infos[opindex] = new_plot_info
+        self.plot_infos[index] = new_info
         self.relayout()
 
     def relayout(self):
@@ -57,6 +48,33 @@ class TrackButtonPanel(QWidget):
             self.layout.removeWidget(pi)
         for pi in self.plot_infos:
             self.layout.addWidget(pi)
+    
+    def _connect_to_track(self, plot_info):
+        QWidget.connect(plot_info,
+                        SIGNAL("change_curve"),
+                        self.track.change_curve)
+
+    def _disconnect_from_track(self, plot_info):
+        QWidget.disconnect(plot_info,
+                           SIGNAL("change_curve"),
+                           self.track.change_curve)
+
+    def _plot_index(self, plot):
+        return map(lambda pi: pi.plot, self.plot_infos).index(plot)
+
+    def _build_plot_info(self, plot):
+        plot_info = PlotInfo(plot, self)
+        self._connect_to_track(plot_info)
+        return plot_info
+    
+    def _destroy_plot_info(self, plot):
+        index = self._plot_index(plot)
+        pi = self.plot_infos[index]
+        self._disconnect_from_track(pi)
+        return pi, index
+        
+        
+            
         
 
 from gui.tracks import TrackWindow

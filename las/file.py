@@ -140,7 +140,7 @@ class TransformedLasCurve(LasCurve):
         LasCurve.__init__(self, lasfield.descriptor, lasfield.data)
 
     def set_at(self, idx, val):
-        self.data[idx] = val / (self.scale * 1.0) - self.offset
+        self.data[idx] = (val - self.offset) / (self.scale * 1.0) 
     
     def get_at(self, idx):
         return self.data[idx] * self.scale + self.offset

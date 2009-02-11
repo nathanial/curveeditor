@@ -9,7 +9,4 @@ def fixed_size_policy(widget):
     widget.setSizePolicy(QtGui.QSizePolicy.Fixed,
                          QtGui.QSizePolicy.Fixed)
     widget.updateGeometry()
-
-    
-    
-    
+        

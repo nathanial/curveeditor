@@ -63,4 +63,4 @@ def float_eq(a,b):
 
 def swap(ls, old, new):
     index = ls.index(old)
-    ls[index] = new    
+    ls[index] = new        
