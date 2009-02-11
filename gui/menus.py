@@ -11,6 +11,7 @@ from util import each, times
 from PyQt4.QtCore import SIGNAL
 from gui.main import registry
 from las.file import LasFile
+from gui.plots import Plot
 
 class FileMenu(QMenu):
     def __init__(self, parent):
@@ -50,44 +51,39 @@ class TracksMenu(QMenu):
     def removeTrack(self):
         self.emit(SIGNAL("remove_track"))
 
-class CurvesContextMenu(QMenu):
-    def __init__(self, track_window):
-        QMenu.__init__(self, track_window)
-        curves = track_window.curves()
-        
-        self.addAction('&Add Curve', track_window.add_new_curve)
-        
-        def create_and_add(i):
-            menu = CurveContextMenu(self, curves[i], track_window)
-            self.addMenu(menu)
-        times(len(curves), create_and_add)
+class PlotsContextMenu(QMenu):
+    def __init__(self, track, parent):
+        QMenu.__init__(self, parent)
+        self.track = track
+        plots = track.plots()
+
+        self.addAction('&Add Curve', self.track.add_new_plot)        
+        for plot in plots:
+            self.addMenu(PlotContextMenu(self, plot))
 
         QApplication.processEvents()
         self.updateGeometry()
         QApplication.processEvents()
         self.adjustSize()
                 
-class CurveContextMenu(QMenu):
-    def __init__(self, parent, curve, track_window):
-        QMenu.__init__(self,curve_name, parent)
-        self.track_window = track_window
-        self.track_color_menu = CurveColorMenu(curve,track_window)
-        self.track_marker_menu = CurveMarkerMenu(curve,track_window)
-        self.addMenu(self.track_color_menu)
-        self.addMenu(self.track_marker_menu)
+class PlotContextMenu(QMenu):
+    def __init__(self, parent, plot):
+        QMenu.__init__(self, plot.name(), parent)
+        color_menu = PlotColorMenu(self,plot)
+        marker_menu = PlotMarkerMenu(self,plot)
+        self.addMenu(color_menu)
+        self.addMenu(marker_menu)
 
-class CurveColorMenu(QMenu):
-    def __init__(self, curve, track_window):
-        QMenu.__init__(self,"Color")
-        self.track_window = track_window
-        self.addAction('&Red', lambda: curve.set_color("r"))
-        self.addAction('&Blue', lambda: curve.set_color("b"))
-        self.addAction('&Green', lambda: curve.set_color("g"))
+class PlotColorMenu(QMenu):
+    def __init__(self, parent,plot):
+        QMenu.__init__(self,"Color", parent)
+        self.addAction('&Red', lambda: plot.set_color("r"))
+        self.addAction('&Blue', lambda: plot.set_color("b"))
+        self.addAction('&Green', lambda: plot.set_color("g"))
 
-class CurveMarkerMenu(QMenu):
-    def __init__(self, curve, track_window):
-        QMenu.__init__(self,"Marker")
-        self.track_window = track_window
-        self.addAction('&None', lambda: curve.set_marker("None"))
-        self.addAction('&Circle', lambda: curve.set_marker("o"))
-        self.addAction('&Triangle', lambda: curve.set_marker("^"))
+class PlotMarkerMenu(QMenu):
+    def __init__(self, parent, plot):
+        QMenu.__init__(self,"Marker", parent)
+        self.addAction('&None', lambda: plot.set_marker("None"))
+        self.addAction('&Circle', lambda: plot.set_marker("o"))
+        self.addAction('&Triangle', lambda: plot.set_marker("^"))

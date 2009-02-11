@@ -9,15 +9,16 @@ from numpy import arange, sin, pi
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from util import times, each, lfind, partial
+from util import times, each, lfind, partial, swap
 from las.file import transform
 from gui.gutil import minimum_size_policy, fixed_size_policy
 from gui.menus import PlotsContextMenu
-from gui.curve import Plot, TransformedCurve, PlotInfo
+from gui.panels import TrackButtonPanel
+from gui.plots import Plot
 from gui.main import registry
 from dummy import *
 
-class Track(FigureCanvas):
+class TrackCanvas(FigureCanvas):
     def __init__(self, parent = None, width=5, height=4, dpi=100):
         self.fig = Figure(figsize=(width,height), dpi=dpi)
         self.axes = self.fig.add_subplot(111)
@@ -31,39 +32,31 @@ class Track(FigureCanvas):
         self.setParent(parent)
         fixed_size_policy(self)
 
-    def switch_plot(self, old, new):
+    def swap_plot(self, old, new):
+        new.canvas = self
         self.axes.clear()
-        index = self.plot.index(old)
-        self.plots[index] = new
-        for i in range(0, len(self.plots)):
-            self.plots[i] = self._render_plot(self.plots[i])
+        swap(self.plots, old, new)
+        each(self.plots, self._render_plot)
         self.draw()
 
     def add_plot(self, plot):
         if self.first_plot():
-            self.lowest_depth = pl.ymin()
+            self.lowest_depth = plot.ymin()
             self.highest_depth = plot.ymax()
             self._reset_ylim()
-        self.plots.append(self._render_plot(plot, add_plot = True))
+        plot.canvas = self
+        self.axes.clear()
+        self.plots.append(plot)
+        each(self.plots, self._render_plot)
         self.draw()
 
-    def add_new_plot(self):
-        curve_name = "dept" #fixme
-        x = registry.get_curve(curve_name)
-        y = registry.get_curve("depth")
-        plot = Plot(curve_name, self, x, y, picker=5)
-        self.add_plot(plot)
-
-    def _render_plot(self, plot, add_plot = False):
-        if plot.draggable: plot.disconnect_draggable()
-        plot = plot.untransform()
-        xscale = Track.xscale(plot, self.untransformed_plots(), add_plot)
-        xoffset = Track.xoffset(plot, self.untransformed_plots(), add_plot)
-        plot = plot.transform(xscale = xscale, xoffset = xoffset)
+    def _render_plot(self, plot):
+        xscale = TrackCanvas.xscale(plot, self.plots)
+        xoffset = TrackCanvas.xoffset(plot, self.plots)
+        plot.scale(xscale = xscale, xoffset = xoffset)
         self.axes.add_line(plot)
         self.axes.autoscale_view(scaley=False)
-        plot.connect_draggable()
-        return plot
+        if not plot.draggable: plot.connect_draggable()
 
     def set_increment(self, increment):
         self.increment = increment
@@ -82,9 +75,6 @@ class Track(FigureCanvas):
     def first_plot(self):
         return len(self.plots) == 0
 
-    def untransformed_plots(self):
-        return Track.untransform(self.plots)
-
     @staticmethod
     def xrange(plots):        
         return max([p.xrange() for p in plots])
@@ -98,40 +88,53 @@ class Track(FigureCanvas):
         return max([p.xmax() for p in plots])
 
     @staticmethod
-    def xscale(plot, plots, add_plot = False):
-        if add_plot:        
-            plots = plots + [plot]
-        return Track.xrange(plots) / plot.xrange()
+    def xscale(plot, plots):
+        return TrackCanvas.xrange(plots) / plot.xrange()
     
     @staticmethod
-    def xoffset(plot, plots, add_plot = False):
-        if add_plot:
-            plots = plots + [plot]
-        return (Track.xmax(plots) - plot.xmax()) / 2.0
+    def xoffset(plot, plots):
+        return (TrackCanvas.xmax(plots) - plot.xmax()) / 2.0
 
-    @staticmethod
-    def untransform(plots):
-        return map(lambda p: p.untransform(), plots)
 
 class TrackWindow(QWidget):
-    def __init__(self, parent = None):
+    def __init__(self, track, parent = None):
         QWidget.__init__(self, parent)
         fixed_size_policy(self)
+        self.track = track
 
-        self.increment = 0        
-        self.track = Track(self, width=4, height=6)        
-        self.button_panel = TrackButtonPanel(self)
-
-        layout = QVBoxLayout(self)
-        layout.addWidget(self.button_panel)
-        layout.addWidget(self.track)
-
-        self.track.add_new_plot()
-        self.updateGeometry()
+        self.button_panel = TrackButtonPanel(track, self)
+        self.layout = QVBoxLayout(self)
+        self.layout.addWidget(self.button_panel)
 
     def contextMenuEvent(self, event):
-        self.plots_context_menu = PlotsContextMenu(self)
+        self.plots_context_menu = PlotsContextMenu(self.track, self)
         self.plots_context_menu.popup(event.globalPos())
 
-    def curves(self):
-        return self.track.curves
+class Track(object):
+    def __init__(self, parent = None):
+        self.increment = 0        
+        self.window = TrackWindow(self, parent)
+        self.track_canvas = TrackCanvas(self.window, width=4, height=6)
+        self.window.layout.addWidget(self.track_canvas)
+        self.add_new_plot()
+        self.window.updateGeometry()
+        
+    def change_curve(self, old_plot, curve_name): 
+        new_plot = Plot.of(curve_name, "depth")
+        self.track_canvas.swap_plot(old_plot, new_plot)
+        self.window.button_panel.swap_plot_info(old_plot, new_plot)
+
+    def add_new_plot(self):
+        plot = Plot.of("dept", "depth")
+        self.track_canvas.add_plot(plot)
+        self.window.button_panel.add_plot_info(plot)
+        self.window.updateGeometry()
+
+    def plots(self):
+        return list(self.track_canvas.plots)
+
+    def set_increment(self, increment):
+        self.track_canvas.set_increment(increment)
+
+    def draw(self):
+        self.track_canvas.draw()

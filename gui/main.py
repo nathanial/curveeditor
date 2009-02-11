@@ -33,7 +33,7 @@ class Registry(object):
 
 registry = Registry()
 
-from gui.tracks import Track, TrackWindow, TracksPanel
+from gui.panels import TracksPanel
 from gui.menus import FileMenu, TracksMenu
 
 class DepthSlider(QSlider):

@@ -3,6 +3,10 @@ def lfind(ls, pred):
     for i in range(0, len(ls)):
         if pred(ls[i]): return ls[i]
 
+def lindex(ls, pred):
+    for i in range(0, len(ls)):
+        if pred(ls[i]): return i
+        
 def interleave(*args):
     for idx in range(0, max(len(arg) for arg in args)):
         for arg in args:
@@ -56,3 +60,7 @@ def fixed_point(data, fn):
     
 def float_eq(a,b):
     return a - b < 0.001
+
+def swap(ls, old, new):
+    index = ls.index(old)
+    ls[index] = new    

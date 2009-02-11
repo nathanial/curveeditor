@@ -19,25 +19,22 @@ class DummyTrackWindow(QWidget):
         QWidget.__init__(self, parent)
         fixed_size_policy(self)
         
-        track = DummyTrack(self, width=4, height=6)
-        button_panel = DummyTrackButtonPanel(self)
+        self.button_panel = DummyTrackButtonPanel(self)
 
-        layout = QVBoxLayout(self)
-        layout.addWidget(button_panel)
-        layout.addWidget(track)
+        self.layout = QVBoxLayout(self)
+        self.layout.addWidget(self.button_panel)
         self.updateGeometry()
 
 class DummyTrackButtonPanel(QWidget):
     def __init__(self, track_window):
         QWidget.__init__(self, track_window)
         minimum_size_policy(self)
-        
         curve_info = DummyBox(self)
         layout = QVBoxLayout(self)
         layout.addWidget(curve_info)
         self.updateGeometry()
 
-class DummyTrack(FigureCanvas):
+class DummyTrackCanvas(FigureCanvas):
     def __init__(self, parent = None, width=5, height=4, dpi=100):
         fig = Figure(figsize=(width,height), dpi=dpi)
         axes = fig.add_subplot(111)
@@ -46,9 +43,13 @@ class DummyTrack(FigureCanvas):
         self.setParent(parent)
         fixed_size_policy(self)
 
+class DummyTrack(object):
+    def __init__(self, parent = None):
+        self.window = DummyTrackWindow(parent)
+        self.track = DummyTrackCanvas(self.window, width=4, height=6)
+        self.window.layout.addWidget(self.track)
 
+    def hide(self):
+        self.window.hide()
+        self.track.hide()
 
-        
-        
-
-        

@@ -111,6 +111,9 @@ class LasCurve(object):
     def to_list(self):
         return list(self.data)
 
+    def name(self):
+        return self.descriptor.mnemonic.lower()
+
     @staticmethod
     def from_rows(data_rows, curve_header):
         ds = curve_header.descriptors
