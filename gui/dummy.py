@@ -1,7 +1,6 @@
 from las.file import LasCurve, transform
 from matplotlib.lines import Line2D
 from PyQt4 import QtGui, QtCore
-from gui.program import registry
 from PyQt4.QtGui import QMainWindow, QMenu, QWidget,\
     QVBoxLayout, QApplication, QMessageBox, QHBoxLayout,\
     QFileDialog, QSlider, QComboBox, QLayout, QPushButton,\

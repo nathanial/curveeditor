@@ -59,6 +59,6 @@ parser LASParser:
     rule number: NUM {{ return eval(NUM) }} |
 		 FLOAT {{ return eval(FLOAT) }}
     
-    rule end_line: "\n"
+    rule end_line: "\n\r" | "\n" | "\r\n" | "\r"
 
     rule space: end_line | EMPTY

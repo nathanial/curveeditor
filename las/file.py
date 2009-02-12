@@ -22,7 +22,7 @@ class LasFile(object):
 
         for mnemonic in self.curve_header.mnemonics():
             field = LasCurve.find_with_mnemonic(mnemonic, self.curves)
-            setattr(self, mnemonic + "_field", field)
+            setattr(self, mnemonic, field)
 
     def __eq__(self,that):
         if not isinstance(that, LasFile): return False
@@ -37,6 +37,10 @@ class LasFile(object):
         from parser import parse
         return parse("las_file", read_file(path))
 
+    @staticmethod
+    def is_lasfile(filename):
+        return True #fixme
+
     def to_las(self):
         return (self.version_header.to_las() +
                 self.well_header.to_las() + 
@@ -45,6 +49,15 @@ class LasFile(object):
                 LasCurve.to_las(self.curves))
 
     def curve_mnemonics(self):
+        return self.curve_header.mnemonics()
+
+    def get_curve(self, curve_name):
+        return getattr(self, curve_name)
+
+    def get_curves(self, *curve_names):
+        return [self.get_curve(name) for name in curve_names]
+
+    def available_curves(self):
         return self.curve_header.mnemonics()
 
 class Descriptor(object):

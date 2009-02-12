@@ -1,5 +1,7 @@
 from las.file import LasCurve, transform
 from matplotlib.lines import Line2D
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 from PyQt4 import QtGui, QtCore
 from PyQt4.QtCore import SIGNAL, QSize
 from PyQt4.QtGui import QMainWindow, QMenu, QWidget,\
@@ -7,6 +9,7 @@ from PyQt4.QtGui import QMainWindow, QMenu, QWidget,\
     QFileDialog, QSlider, QComboBox, QLayout, QPushButton,\
     QDialog, QRadioButton, QLabel
 from gui.gutil import minimum_size_policy, fixed_size_policy
+from util import *
 
 class Plot(Line2D):
     def __init__(self, xfield = None, yfield = None, canvas = None, *args, **kwargs):
@@ -125,19 +128,26 @@ class Plot(Line2D):
 
     @staticmethod
     def of(xcurve_name, ycurve_name):
-        x = registry.get_curve(xcurve_name)
-        y = registry.get_curve(ycurve_name)
-        return Plot(x,y)
-        
+        return PlotBuilder(xcurve_name, ycurve_name)
+
+class PlotBuilder(object):
+    def __init__(self, xcurve_name, ycurve_name):
+        self.xcurve_name = xcurve_name
+        self.ycurve_name = ycurve_name
+
+    def from_(self, curve_source):
+        xcurve,ycurve = curve_source.get_curves(
+            self.xcurve_name,self.ycurve_name)
+        return Plot(xcurve, ycurve)
 
 class PlotInfo(QWidget):
-    def __init__(self, plot, parent):
+    def __init__(self, plot, available_curves, parent):
         QWidget.__init__(self, parent)
         self.plot = plot
         minimum_size_policy(self)
 
         self.curve_box = QComboBox(self)
-        self.curve_names = track.available_curves()
+        self.curve_names = available_curves
         index = self.curve_names.index(plot.name())
 
         self.curve_box.addItems(self.curve_names)
@@ -155,7 +165,134 @@ class PlotInfo(QWidget):
                         SIGNAL("currentIndexChanged(int)"),
                         self.change_curve)
 
-
     def change_curve(self, index):
         name = self.curve_names[index]
         self.emit(SIGNAL("change_curve"), self.plot, name)
+
+class PlotCanvas(FigureCanvas):
+    def __init__(self, parent = None, width=5, height=4, dpi=100):
+        self.fig = Figure(figsize=(width,height), dpi=dpi)
+        self.axes = self.fig.add_subplot(111)
+        self.axes.hold(False)
+        self.plots = []
+        self.increment = 0
+        self.lowest_depth = None
+        self.highest_depth = None
+        FigureCanvas.__init__(self, self.fig)
+        self.setParent(parent)
+        fixed_size_policy(self)
+
+    def swap_plot(self, old, new):
+        self._insert_plot(new, lambda: swap(self.plots, old, new))
+
+    def add_plot(self, plot):
+        if self.first_plot():
+            self.lowest_depth = plot.ymin()
+            self.highest_depth = plot.ymax()
+            self._reset_ylim()
+        self._insert_plot(plot, lambda: self.plots.append(plot))
+
+    def remove_plot(self, plot):
+        plot.canvas = None
+        index = self.plots.index(plot)
+        del self.plots[index]
+        self.axes.clear()
+        self._render_plots()
+        self.draw()
+
+    def remove_all_plots(self):
+        for plot in self.plots:
+            self.remove_plot(plot)
+
+    def _insert_plot(self, plot, fn):
+        plot.canvas = self
+        self.axes.clear()
+        fn()
+        each(self.plots, self._render_plot)
+        self.draw()
+
+    def _render_plots(self):
+        each(self.plots, self._render_plot)
+
+    def _render_plot(self, plot):
+        xscale = PlotCanvas.xscale(plot, self.plots)
+        xoffset = PlotCanvas.xoffset(plot, self.plots)
+        plot.scale(xscale = xscale, xoffset = xoffset)
+        self.axes.add_line(plot)
+        self.axes.autoscale_view(scaley=False)
+        if not plot.draggable: plot.connect_draggable()
+
+    def set_increment(self, increment):
+        self.increment = increment
+        self._reset_ylim()
+
+    def _reset_ylim(self):
+        self.axes.set_ylim(self.lowest_depth + self._percentage_increment(),
+                           self.lowest_depth + 100 + self._percentage_increment())
+
+    def _percentage_increment(self):
+        return ((self.increment + 1) / 100.0) * self.depth_range()
+
+    def depth_range(self):
+        return self.highest_depth - self.lowest_depth
+
+    def first_plot(self):
+        return len(self.plots) == 0
+
+
+    @staticmethod
+    def xrange(plots):        
+        return max([p.xrange() for p in plots])
+
+    @staticmethod
+    def xmin(plots):
+        return min([p.xmin() for p in plots])
+
+    @staticmethod
+    def xmax(plots):
+        return max([p.xmax() for p in plots])
+
+    @staticmethod
+    def xscale(plot, plots):
+        return PlotCanvas.xrange(plots) / plot.xrange()
+    
+    @staticmethod
+    def xoffset(plot, plots):
+        return (PlotCanvas.xmax(plots) - plot.xmax()) / 2.0        
+
+class PlotsContextMenu(QMenu):
+    def __init__(self, track, parent):
+        QMenu.__init__(self, parent)
+        self.track = track
+        plots = track.plots()
+
+        self.addAction('&Add Curve', self.track.add_new_plot)        
+        for plot in plots:
+            self.addMenu(PlotContextMenu(self, plot))
+
+        QApplication.processEvents()
+        self.updateGeometry()
+        QApplication.processEvents()
+        self.adjustSize()
+                
+class PlotContextMenu(QMenu):
+    def __init__(self, parent, plot):
+        QMenu.__init__(self, plot.name(), parent)
+        color_menu = PlotColorMenu(self,plot)
+        marker_menu = PlotMarkerMenu(self,plot)
+        self.addMenu(color_menu)
+        self.addMenu(marker_menu)
+
+class PlotColorMenu(QMenu):
+    def __init__(self, parent,plot):
+        QMenu.__init__(self,"Color", parent)
+        self.addAction('&Red', lambda: plot.set_color("r"))
+        self.addAction('&Blue', lambda: plot.set_color("b"))
+        self.addAction('&Green', lambda: plot.set_color("g"))
+
+class PlotMarkerMenu(QMenu):
+    def __init__(self, parent, plot):
+        QMenu.__init__(self,"Marker", parent)
+        self.addAction('&None', lambda: plot.set_marker("None"))
+        self.addAction('&Circle', lambda: plot.set_marker("o"))
+        self.addAction('&Triangle', lambda: plot.set_marker("^"))
