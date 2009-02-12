@@ -9,7 +9,7 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from util import each, times
 from PyQt4.QtCore import SIGNAL
-from gui.main import registry
+from gui.program import registry
 from las.file import LasFile
 from gui.plots import Plot
 

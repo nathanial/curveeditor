@@ -14,7 +14,7 @@ from las.file import transform
 from gui.gutil import minimum_size_policy, fixed_size_policy
 from gui.menus import PlotsContextMenu
 from gui.plots import Plot, PlotInfo
-from gui.main import registry
+from gui.program import registry
 from dummy import *
 
 class TrackButtonPanel(QWidget):
@@ -23,6 +23,7 @@ class TrackButtonPanel(QWidget):
         minimum_size_policy(self)
         self.track = track
         self.plot_infos = []
+        parent.layout.addLayout(self)
         self.layout = QVBoxLayout(self)
 
     def add_plot_info(self, plot):
@@ -49,16 +50,6 @@ class TrackButtonPanel(QWidget):
         for pi in self.plot_infos:
             self.layout.addWidget(pi)
     
-    def _connect_to_track(self, plot_info):
-        QWidget.connect(plot_info,
-                        SIGNAL("change_curve"),
-                        self.track.change_curve)
-
-    def _disconnect_from_track(self, plot_info):
-        QWidget.disconnect(plot_info,
-                           SIGNAL("change_curve"),
-                           self.track.change_curve)
-
     def _plot_index(self, plot):
         return map(lambda pi: pi.plot, self.plot_infos).index(plot)
 
@@ -72,9 +63,16 @@ class TrackButtonPanel(QWidget):
         pi = self.plot_infos[index]
         self._disconnect_from_track(pi)
         return pi, index
-        
-        
-            
+
+    def _connect_to_track(self, plot_info):
+        QWidget.connect(plot_info,
+                        SIGNAL("change_curve"),
+                        self.track.change_curve)
+
+    def _disconnect_from_track(self, plot_info):
+        QWidget.disconnect(plot_info,
+                           SIGNAL("change_curve"),
+                           self.track.change_curve)            
         
 
 from gui.tracks import TrackWindow
@@ -84,8 +82,6 @@ class TracksPanel(QWidget):
         minimum_size_policy(self)
         self.tracks = []
         self.layout = QHBoxLayout(self)
-        self.first_time = True
-        registry.lasfile_listeners.append(self.replace_dummy)
         
     def add_track(self, track):
         self.layout.addWidget(track.window)
@@ -103,15 +99,6 @@ class TracksPanel(QWidget):
         track = Track(self)
         self.add_track(track)
 
-    def add_dummy_track(self):
-        self.dummy_track = DummyTrack(self)
-        self.add_track(self.dummy_track)
-
-    def remove_dummy_track(self):
-        del self.tracks[0]
-        self.dummy_track.hide()
-        self.layout.removeWidget(self.dummy_track.window)
-
     def resize_after_remove(self):
         self.updateGeometry()
         QApplication.processEvents()
@@ -123,7 +110,14 @@ class TracksPanel(QWidget):
         for track in self.tracks: track.draw()
 
     def replace_dummy(self):
-        if self.first_time:
-            self.remove_dummy_track()
-            self.add_new_track()
-            self.first_time = False
+        self.remove_dummy_track()
+        self.add_new_track()
+
+    def add_dummy_track(self):
+        self.dummy_track = DummyTrack(self)
+        self.add_track(self.dummy_track)
+
+    def remove_dummy_track(self):
+        del self.tracks[0]
+        self.dummy_track.hide()
+        self.layout.removeWidget(self.dummy_track.window)

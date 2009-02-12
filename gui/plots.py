@@ -1,7 +1,6 @@
 from las.file import LasCurve, transform
 from matplotlib.lines import Line2D
 from PyQt4 import QtGui, QtCore
-from gui.main import registry
 from PyQt4.QtCore import SIGNAL, QSize
 from PyQt4.QtGui import QMainWindow, QMenu, QWidget,\
     QVBoxLayout, QApplication, QMessageBox, QHBoxLayout,\
@@ -44,14 +43,12 @@ class Plot(Line2D):
     def drag_on_press(self, event):
         contains,attrd = self.contains(event)
         if not contains: return
-        print "attrd %s " % attrd
         self.press = attrd['ind']
 
     def drag_on_motion(self, event):
         if self.press is None: return
         ind = self.press
         if len(ind) > 1: ind = ind[0]
-        print "event %s " % event.xdata
         self.current_xfield[ind] = event.xdata
         self.set_xdata(self.current_xfield.to_list())
         self.canvas.draw()
@@ -140,7 +137,7 @@ class PlotInfo(QWidget):
         minimum_size_policy(self)
 
         self.curve_box = QComboBox(self)
-        self.curve_names = registry.lasfile.curve_mnemonics()
+        self.curve_names = track.available_curves()
         index = self.curve_names.index(plot.name())
 
         self.curve_box.addItems(self.curve_names)
@@ -154,7 +151,6 @@ class PlotInfo(QWidget):
         self.layout.addWidget(self.curve_box)
         self.layout.addWidget(self.xmax_label)
 
-        
         QWidget.connect(self.curve_box, 
                         SIGNAL("currentIndexChanged(int)"),
                         self.change_curve)
