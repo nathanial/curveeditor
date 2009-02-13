@@ -62,6 +62,7 @@ class HeaderWithDescriptors(HasDescriptors):
         return (self.identifier + "\n" + 
                 "\n".join(map(lambda x: x.to_las(), self.descriptors))) + "\n"
 
+
 def descriptor_header(name, identifier):
     class Anon(HeaderWithDescriptors):
         def __init__(self, descriptors):

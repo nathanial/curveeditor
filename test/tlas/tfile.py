@@ -29,7 +29,10 @@ def header_attributes():
 @test
 def descriptor_to_las():
     d = Descriptor("DEPT", "m", None, "DEPTH")
+    print "d = %s " % d
+    print "d.to_las = %s " % d.to_las()
     nd = parser.parse("descriptor", d.to_las())
+    print "nd = %s " % nd
     assert d == nd
     
 #Test Writing

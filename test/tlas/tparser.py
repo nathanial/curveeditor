@@ -2,7 +2,7 @@ from test.test_util import test
 from las.file import *
 from las.headers import *
 from util import partial, forall, subdivide
-import parser
+from yacc_parser import parser, LasLexer
 from test import data
 
 tests = []
@@ -11,7 +11,7 @@ test = partial(test, tests)
 @test
 def test_descriptors():
     def parse_from(n):
-        return parser.parse("descriptor", data.text['descriptors'][n])
+        return parser.parse(data.text['descriptors'][n])
     pf = parse_from
     
     dept, net_gross, facies = pf(0), pf(1), pf(2)
@@ -29,18 +29,18 @@ def test_descriptors():
 
 @test
 def test_version_header():
-    version_header = parser.parse("version_header", data.text['version_header'])
+    version_header = parser.parse(data.text['version_header'])
     assert version_header == VersionHeader(2.0, False)
     
 @test
 def test_well_header():
-    well_header = parser.parse("well_header", data.text['well_header'])
+    well_header = parser.parse(data.text['well_header'])
     assert well_header.date.data == "Monday, January 26 2009 14:04:02"
     assert well_header.date.description == "DATE"
 
 @test
 def test_curve_header():
-    curve_header = parser.parse("curve_header", data.text['curve_header'])
+    curve_header = parser.parse(data.text['curve_header'])
     mnemonics = curve_header.mnemonics()
     assert len(curve_header.descriptors) == 6
     assert forall(["dept", "netgross", "facies", "porosity", "gamma", "depth"],
@@ -50,7 +50,7 @@ def test_curve_header():
 @test
 def test_las_data():
     cols = len(data.curve_header.descriptors)
-    rows = subdivide(parser.parse("data_rows", data.text['las_data']), cols)
+    rows = subdivide(parser.parse(data.text['las_data']), cols)
     curves = LasCurve.from_rows(rows,data.curve_header)
     
 if __name__ == "__main__":

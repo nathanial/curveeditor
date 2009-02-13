@@ -9,11 +9,8 @@ from yapps import runtime
 
 class LASParserScanner(runtime.Scanner):
     patterns = [
-        ('"\\r"', re.compile('\r')),
-        ('"\\r\\n"', re.compile('\r\n')),
-        ('"\\n"', re.compile('\n')),
-        ('"\\n\\r"', re.compile('\n\r')),
         ('"~A"', re.compile('~A')),
+        ('"."', re.compile('.')),
         ('"~C"', re.compile('~C')),
         ('"WRAP."', re.compile('WRAP.')),
         ('":"', re.compile(':')),
@@ -21,22 +18,22 @@ class LASParserScanner(runtime.Scanner):
         ('"~V"', re.compile('~V')),
         ('"~P"', re.compile('~P')),
         ('"~W"', re.compile('~W')),
-        (' ', re.compile(' ')),
-        ('#[^\n]*\n', re.compile('#[^\n]*\n')),
-        ('MNEMONIC', re.compile('\\w+')),
-        ('UNIT', re.compile('[.][^\n:. ]*')),
-        ('DESCRIPTION', re.compile(':[^\n:]*')),
+        ('( |[#][^\n\r]*)', re.compile('( |[#][^\n\r]*)')),
+        ('ENDLINE', re.compile('(\n\r)|\n|(\r\n)|\r')),
+        ('MNEMONIC', re.compile('[^.]+')),
+        ('UNIT', re.compile('[^ ]+')),
+        ('DESCRIPTION', re.compile('[^\n\r:]+')),
         ('STRING', re.compile('.*')),
-        ('LINE', re.compile('[^\n]*')),
-        ('DELIMITER_FREE_STRING', re.compile('[^\n:.]*')),
+        ('LINE', re.compile('[^\n\r]*')),
+        ('DELIMITER_FREE_STRING', re.compile('[^\n\r:.]*')),
         ('COLON_FREE_STRING', re.compile('[^\n:]*')),
         ('NUM', re.compile('-?[0-9]+')),
         ('FLOAT', re.compile('-?[0-9]+[.][0-9]+')),
         ('EMPTY', re.compile('')),
-        ('DATA', re.compile('[^\n]*(?= :[^\n:]*)')),
+        ('DATA', re.compile('[^\n\r]+(?= :[^\n\r:]*)')),
     ]
     def __init__(self, str,*args,**kw):
-        runtime.Scanner.__init__(self,None,{' ':None,'#[^\n]*\n':None,},str,*args,**kw)
+        runtime.Scanner.__init__(self,None,{'( |[#][^\n\r]*)':None,},str,*args,**kw)
 
 class LASParser(runtime.Parser):
     Context = runtime.Context
@@ -51,97 +48,99 @@ class LASParser(runtime.Parser):
 
     def well_header(self, _parent=None):
         _context = self.Context(_parent, self._scanner, 'well_header', [])
-        while self._peek('"~W"', '"\\n\\r"', '"\\n"', '"\\r\\n"', '"\\r"', 'EMPTY', '"VERS."', '"WRAP."', '"~P"', '"~V"', '"~C"', '"~A"', 'MNEMONIC', 'NUM', 'FLOAT', context=_context) in ['"\\n\\r"', '"\\n"', '"\\r\\n"', '"\\r"', 'EMPTY']:
+        while self._peek('"~W"', 'ENDLINE', 'EMPTY', '"~P"', '"~V"', '"~C"', '"~A"', context=_context) in ['ENDLINE', 'EMPTY']:
             space = self.space(_context)
         self._scan('"~W"', context=_context)
         LINE = self._scan('LINE', context=_context)
-        end_line = self.end_line(_context)
+        ENDLINE = self._scan('ENDLINE', context=_context)
         descriptors = []
-        while self._peek('MNEMONIC', '"VERS."', '"WRAP."', '"~C"', '"~W"', '"\\n\\r"', '"\\n"', '"\\r\\n"', '"\\r"', 'EMPTY', '"~P"', '"~V"', '"~A"', 'NUM', 'FLOAT', context=_context) == 'MNEMONIC':
+        while self._peek('MNEMONIC', '"~C"', 'ENDLINE', 'EMPTY', '"~W"', '"~P"', '"~V"', '"~A"', context=_context) == 'MNEMONIC':
             descriptor = self.descriptor(_context)
             descriptors.append(descriptor)
-            end_line = self.end_line(_context)
+            ENDLINE = self._scan('ENDLINE', context=_context)
         return WellHeader(descriptors)
 
     def parameter_header(self, _parent=None):
         _context = self.Context(_parent, self._scanner, 'parameter_header', [])
-        while self._peek('"~P"', '"\\n\\r"', '"\\n"', '"\\r\\n"', '"\\r"', 'EMPTY', '"VERS."', '"WRAP."', '"~W"', '"~V"', '"~C"', '"~A"', 'MNEMONIC', 'NUM', 'FLOAT', context=_context) in ['"\\n\\r"', '"\\n"', '"\\r\\n"', '"\\r"', 'EMPTY']:
+        while self._peek('"~P"', 'ENDLINE', 'EMPTY', '"~W"', '"~V"', '"~C"', '"~A"', context=_context) in ['ENDLINE', 'EMPTY']:
             space = self.space(_context)
         self._scan('"~P"', context=_context)
         LINE = self._scan('LINE', context=_context)
-        end_line = self.end_line(_context)
+        ENDLINE = self._scan('ENDLINE', context=_context)
         descriptors = []
-        while self._peek('MNEMONIC', '"VERS."', '"WRAP."', '"~A"', '"~W"', '"\\n\\r"', '"\\n"', '"\\r\\n"', '"\\r"', 'EMPTY', '"~P"', '"~V"', '"~C"', 'NUM', 'FLOAT', context=_context) == 'MNEMONIC':
+        while self._peek('MNEMONIC', '"~A"', 'ENDLINE', 'EMPTY', '"~W"', '"~P"', '"~V"', '"~C"', context=_context) == 'MNEMONIC':
             descriptor = self.descriptor(_context)
             descriptors.append(descriptor)
-            end_line = self.end_line(_context)
+            ENDLINE = self._scan('ENDLINE', context=_context)
         return ParameterHeader(descriptors)
 
     def version_header(self, _parent=None):
         _context = self.Context(_parent, self._scanner, 'version_header', [])
-        while self._peek('"~V"', '"\\n\\r"', '"\\n"', '"\\r\\n"', '"\\r"', 'EMPTY', '"VERS."', '"WRAP."', '"~W"', '"~P"', '"~C"', '"~A"', 'MNEMONIC', 'NUM', 'FLOAT', context=_context) in ['"\\n\\r"', '"\\n"', '"\\r\\n"', '"\\r"', 'EMPTY']:
+        while self._peek('"~V"', 'ENDLINE', 'EMPTY', '"~W"', '"~P"', '"~C"', '"~A"', context=_context) in ['ENDLINE', 'EMPTY']:
             space = self.space(_context)
         self._scan('"~V"', context=_context)
         LINE = self._scan('LINE', context=_context)
-        end_line = self.end_line(_context)
+        ENDLINE = self._scan('ENDLINE', context=_context)
         self._scan('"VERS."', context=_context)
         number = self.number(_context)
         self._scan('":"', context=_context)
         vers = number
-        end_line = self.end_line(_context)
+        ENDLINE = self._scan('ENDLINE', context=_context)
         self._scan('"WRAP."', context=_context)
         COLON_FREE_STRING = self._scan('COLON_FREE_STRING', context=_context)
         self._scan('":"', context=_context)
         wrap = COLON_FREE_STRING
-        end_line = self.end_line(_context)
+        ENDLINE = self._scan('ENDLINE', context=_context)
         return VersionHeader(vers,wrap)
 
     def curve_header(self, _parent=None):
         _context = self.Context(_parent, self._scanner, 'curve_header', [])
-        while self._peek('"~C"', '"\\n\\r"', '"\\n"', '"\\r\\n"', '"\\r"', 'EMPTY', '"VERS."', '"WRAP."', '"~W"', '"~P"', '"~V"', '"~A"', 'MNEMONIC', 'NUM', 'FLOAT', context=_context) in ['"\\n\\r"', '"\\n"', '"\\r\\n"', '"\\r"', 'EMPTY']:
+        while self._peek('"~C"', 'ENDLINE', 'EMPTY', '"~W"', '"~P"', '"~V"', '"~A"', context=_context) in ['ENDLINE', 'EMPTY']:
             space = self.space(_context)
         self._scan('"~C"', context=_context)
         LINE = self._scan('LINE', context=_context)
-        end_line = self.end_line(_context)
+        ENDLINE = self._scan('ENDLINE', context=_context)
         descriptors = []
-        while self._peek('"VERS."', '"WRAP."', 'MNEMONIC', '"~P"', '"~W"', '"\\n\\r"', '"\\n"', '"\\r\\n"', '"\\r"', 'EMPTY', '"~V"', '"~C"', '"~A"', 'NUM', 'FLOAT', context=_context) == 'MNEMONIC':
+        while self._peek('MNEMONIC', '"~P"', 'ENDLINE', 'EMPTY', '"~W"', '"~V"', '"~C"', '"~A"', context=_context) == 'MNEMONIC':
             descriptor = self.descriptor(_context)
             descriptors.append(descriptor)
-            end_line = self.end_line(_context)
+            ENDLINE = self._scan('ENDLINE', context=_context)
         return CurveHeader(descriptors)
 
     def descriptor(self, _parent=None):
         _context = self.Context(_parent, self._scanner, 'descriptor', [])
         MNEMONIC = self._scan('MNEMONIC', context=_context)
+        self._scan('"."', context=_context)
+        unit = None
+        data = None
         UNIT = self._scan('UNIT', context=_context)
-        DATA = self._scan('DATA', context=_context)
+        unit = UNIT
+        if self._peek('DATA', '":"', context=_context) == 'DATA':
+            DATA = self._scan('DATA', context=_context)
+            data = DATA
+        self._scan('":"', context=_context)
         DESCRIPTION = self._scan('DESCRIPTION', context=_context)
-        return Descriptor(MNEMONIC, UNIT[1:], DATA, DESCRIPTION[1:].strip())
+        print "pmnemonic = %s " % MNEMONIC,
+        print "punit = %s " % unit,
+        print "pdata = %s " % data,
+        print "pdescription = %s" % DESCRIPTION
+        return Descriptor(MNEMONIC, unit, data, DESCRIPTION.strip())
 
     def data_rows(self, _parent=None):
         _context = self.Context(_parent, self._scanner, 'data_rows', [])
-        while self._peek('"~A"', '"\\n\\r"', '"\\n"', '"\\r\\n"', '"\\r"', 'EMPTY', '"VERS."', '"WRAP."', '"~W"', '"~P"', '"~V"', '"~C"', 'MNEMONIC', 'NUM', 'FLOAT', context=_context) in ['"\\n\\r"', '"\\n"', '"\\r\\n"', '"\\r"', 'EMPTY']:
+        while self._peek('"~A"', 'ENDLINE', 'EMPTY', '"~W"', '"~P"', '"~V"', '"~C"', context=_context) in ['ENDLINE', 'EMPTY']:
             space = self.space(_context)
         self._scan('"~A"', context=_context)
         LINE = self._scan('LINE', context=_context)
-        end_line = self.end_line(_context)
+        ENDLINE = self._scan('ENDLINE', context=_context)
         data = []
-        while self._peek('"VERS."', '"WRAP."', '"\\n\\r"', '"\\n"', '"\\r\\n"', '"\\r"', 'EMPTY', 'NUM', 'FLOAT', 'MNEMONIC', '"~W"', '"~P"', '"~V"', '"~C"', '"~A"', context=_context) in ['NUM', 'FLOAT']:
-            row = self.row(_context)
-            data.extend(row)
-            if self._peek('"\\n\\r"', '"\\n"', '"\\r\\n"', '"\\r"', '"VERS."', '"WRAP."', 'MNEMONIC', 'EMPTY', 'NUM', 'FLOAT', '"~W"', '"~P"', '"~V"', '"~C"', '"~A"', context=_context) in ['"\\n\\r"', '"\\n"', '"\\r\\n"', '"\\r"']:
-                end_line = self.end_line(_context)
+        while self._peek('ENDLINE', 'EMPTY', 'NUM', 'FLOAT', context=_context) in ['NUM', 'FLOAT']:
+            number = self.number(_context)
+            data.append(number)
+            if self._peek('ENDLINE', 'NUM', 'FLOAT', 'EMPTY', context=_context) == 'ENDLINE':
+                ENDLINE = self._scan('ENDLINE', context=_context)
         space = self.space(_context)
         return data
-
-    def row(self, _parent=None):
-        _context = self.Context(_parent, self._scanner, 'row', [])
-        columns = []
-        while 1:
-            number = self.number(_context)
-            columns.append(number)
-            if self._peek('NUM', 'FLOAT', '"\\n\\r"', '"\\n"', '"\\r\\n"', '"\\r"', '"VERS."', '"WRAP."', 'MNEMONIC', 'EMPTY', '"~W"', '"~P"', '"~V"', '"~C"', '"~A"', context=_context) not in ['NUM', 'FLOAT']: break
-        return columns
 
     def number(self, _parent=None):
         _context = self.Context(_parent, self._scanner, 'number', [])
@@ -153,23 +152,11 @@ class LASParser(runtime.Parser):
             FLOAT = self._scan('FLOAT', context=_context)
             return eval(FLOAT)
 
-    def end_line(self, _parent=None):
-        _context = self.Context(_parent, self._scanner, 'end_line', [])
-        _token = self._peek('"\\n\\r"', '"\\n"', '"\\r\\n"', '"\\r"', context=_context)
-        if _token == '"\\n\\r"':
-            self._scan('"\\n\\r"', context=_context)
-        elif _token == '"\\n"':
-            self._scan('"\\n"', context=_context)
-        elif _token == '"\\r\\n"':
-            self._scan('"\\r\\n"', context=_context)
-        else: # == '"\\r"'
-            self._scan('"\\r"', context=_context)
-
     def space(self, _parent=None):
         _context = self.Context(_parent, self._scanner, 'space', [])
-        _token = self._peek('"\\n\\r"', '"\\n"', '"\\r\\n"', '"\\r"', 'EMPTY', context=_context)
-        if _token != 'EMPTY':
-            end_line = self.end_line(_context)
+        _token = self._peek('ENDLINE', 'EMPTY', context=_context)
+        if _token == 'ENDLINE':
+            ENDLINE = self._scan('ENDLINE', context=_context)
         else: # == 'EMPTY'
             EMPTY = self._scan('EMPTY', context=_context)
 

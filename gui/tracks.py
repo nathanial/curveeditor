@@ -52,6 +52,9 @@ class TrackView(QWidget):
         QApplication.processEvents()
         self.adjustSize()
         QApplication.processEvents()
+        self.main_window.updateGeometry()
+        QApplication.processEvents()
+        self.main_window.adjustSize()
 
     def change_depth(self, increment):
         for track in self.tracks: track.set_increment(increment)

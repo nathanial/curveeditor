@@ -4,61 +4,60 @@ from util import subdivide
 
 %%
 parser LASParser:
-    ignore: ' '
-    ignore: "#[^\n]*\n"
-    token MNEMONIC: "\\w+"
-    token UNIT: "[.][^\n:. ]*"
-    token DESCRIPTION: ":[^\n:]*"
+    ignore: "( |[#][^\n\r]*)"
+    token ENDLINE: "(\n\r)|\n|(\r\n)|\r"
+    token MNEMONIC: "[^.]+"
+    token DESCRIPTION: "[^\n\r:]+"
     token STRING: ".*"
-    token LINE: "[^\n]*"
-    token DELIMITER_FREE_STRING: "[^\n:.]*"
+    token LINE: "[^\n\r]*"
+    token DELIMITER_FREE_STRING: "[^\n\r:.]*"
     token COLON_FREE_STRING: "[^\n:]*"
     token NUM: '-?[0-9]+'
     token FLOAT: '-?[0-9]+[.][0-9]+'
     token EMPTY: ""
-    token DATA: "[^\n]*(?= :[^\n:]*)"
+    token DATA: "[^\n\r]+(?= :[^\n\r:]*)"
 
     rule las_file: version_header well_header curve_header parameter_header data_rows 
     	 	   {{ return LasFile(version_header, well_header, curve_header, parameter_header, subdivide(data_rows, len(curve_header.descriptors))) }}
 
     rule well_header: space* 
-    	 	      "~W" LINE end_line {{ descriptors = [] }}
-		      (descriptor {{ descriptors.append(descriptor) }} end_line)*
+    	 	      "~W" LINE ENDLINE {{ descriptors = [] }}
+		      (descriptor {{ descriptors.append(descriptor) }} ENDLINE)*
 		      {{ return WellHeader(descriptors) }}
 
     rule parameter_header: space*
-    	 		   "~P" LINE end_line {{ descriptors = [] }}
-			   (descriptor {{ descriptors.append(descriptor) }} end_line)*
+    	 		   "~P" LINE ENDLINE {{ descriptors = [] }}
+			   (descriptor {{ descriptors.append(descriptor) }} ENDLINE)*
 			   {{ return ParameterHeader(descriptors) }}		      
-
     
     rule version_header: space*
-    	 	        "~V" LINE end_line
-			"VERS." number ":" {{ vers = number }} end_line
-			"WRAP." COLON_FREE_STRING ":" {{ wrap = COLON_FREE_STRING }} end_line
+    	 	        "~V" LINE ENDLINE
+			"VERS." number ":" {{ vers = number }} ENDLINE
+			"WRAP." COLON_FREE_STRING ":" {{ wrap = COLON_FREE_STRING }} ENDLINE
 			{{ return VersionHeader(vers,wrap) }}
 
     rule curve_header: space* 
-    	 	       "~C" LINE end_line {{ descriptors = [] }}
-    	 	       (descriptor {{ descriptors.append(descriptor) }} end_line)*
+    	 	       "~C" LINE ENDLINE {{ descriptors = [] }}
+    	 	       (descriptor {{ descriptors.append(descriptor) }} ENDLINE)*
 		       {{ return CurveHeader(descriptors) }}
    
-    rule descriptor: MNEMONIC UNIT DATA DESCRIPTION 
-    	 	     {{ return Descriptor(MNEMONIC, UNIT[1:], DATA, DESCRIPTION[1:].strip()) }}
+    rule descriptor: MNEMONIC "." {{ unit = None}} {{ data = None }} 
+    	 	     (UNIT {{unit = UNIT}})?
+		     (DATA {{data = DATA}})? ":" DESCRIPTION 
+    	 	     {{ print "pmnemonic = %s " % MNEMONIC, }}
+		     {{ print "punit = %s " % unit, }}
+		     {{ print "pdata = %s " % data, }}
+		     {{ print "pdescription = %s" % DESCRIPTION }}
+    	 	     {{ return Descriptor(MNEMONIC, unit, data, DESCRIPTION.strip()) }}
 
     rule data_rows: space*
-    	 	   "~A" LINE end_line {{data = []}}
-		   (row {{data.extend(row)}} (end_line?) )*
+    	 	   "~A" LINE ENDLINE {{data = []}}
+		   (number {{data.append(number)}} (ENDLINE?) )*
 		   space
 		   {{ return data }}
-
-    rule row: {{columns = []}}
-    	      (number {{columns.append(number)}})+
-	      {{ return columns }}	      
 
     rule number: NUM {{ return eval(NUM) }} |
 		 FLOAT {{ return eval(FLOAT) }}
     
-    rule end_line: "\n\r" | "\n" | "\r\n" | "\r"
 
-    rule space: end_line | EMPTY
+    rule space: ENDLINE | EMPTY
