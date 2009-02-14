@@ -8,7 +8,13 @@ num_regex = "-?\d+([.]\d+)?"
 start_symbols = ["~A", "~C", "~W", "~P", "~V"]
 
 def is_number(text):
-    return re.match(num_regex, text)
+    match = re.match(num_regex, text)
+    if match:
+        start = match.start()
+        end = match.end()
+        return (end - start) == len(text)
+    else:
+        return False
 
 def to_num(text):
     try:
@@ -36,21 +42,24 @@ class Parser:
         
 
     def well_header(self): 
-        self.well_start()
-        descriptors = self.descriptors()
-        return WellHeader(descriptors)
-
+        parser = self.grab("~W")
+        parser.well_start()
+        descriptors = parser.descriptors()
+        ret = WellHeader(descriptors)
+        return ret
+        
     def well_start(self):
         self.skip_spaces()
-        assert self.linep().get("~W.*")
+        self.linep().get("~W.*")
 
     def version_header(self):
-        self.skip_spaces()
-        assert self.linep().get("~V.*")
-        version = self.linep().skip("VERS[.]").upto(":").strip()        
+        parser = self.grab("~V")
+        parser.skip_spaces()
+        assert parser.linep().get("~V.*")
+        version = parser.linep().skip("VERS[.]").upto(":").strip()        
         version = to_num(version)        
 
-        wrap = self.linep().skip("WRAP[.]").upto(":").strip()
+        wrap = parser.linep().skip("WRAP[.]").upto(":").strip()
         if wrap == "NO": 
             wrap = False
         elif wrap == "YES":
@@ -61,20 +70,23 @@ class Parser:
         return VersionHeader(version, wrap)
 
     def curve_header(self):
-        self.skip_spaces()
-        assert self.linep().get("~C.*")
-        descriptors = self.descriptors()
+        parser = self.grab("~C")
+        parser.skip_spaces()
+        assert parser.linep().get("~C.*")
+        descriptors = parser.descriptors()
         return CurveHeader(descriptors)
 
     def parameter_header(self):
-        self.skip_spaces()
-        assert self.linep().get("~P.*")
-        descriptors = self.descriptors()
+        parser = self.grab("~P")
+        parser.skip_spaces()
+        assert parser.linep().get("~P.*")
+        descriptors = parser.descriptors()
         return ParameterHeader(descriptors)
 
     def las_data(self, curve_header):
-        self.skip_spaces()
-        assert self.linep().get("~A.*")
+        parser = self.grab("~A")
+        parser.skip_spaces()
+        assert parser.linep().get("~A.*")
         data = []
         for line in self.lines():
             numbers = Parser(line).get_numbers()
@@ -130,7 +142,7 @@ class Parser:
         if not ret:
             ret = self.current_input()
             self.cursor = len(self.input)
-        elif ret.strip()[0] == "#":
+        elif ret.strip() != "" and ret.strip()[0] == "#":
             ret = self.line()
         return ret
         
@@ -167,7 +179,17 @@ class Parser:
     def get(self, pattern):
         return self.do_match("\A"+pattern, 0)
 
+    def grab(self, pattern):
+        cinput= self.current_input()
+        match = re.search(pattern, cinput)
+        if match:
+            start = match.start()
+            return Parser(cinput[start:])
+            
+            
+
     def skip(self, pattern):
+        self.skip_spaces()
         self.get(pattern)
         return self
 

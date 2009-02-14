@@ -32,7 +32,6 @@ def test_descriptors():
     assert depth == Descriptor(mnemonic="DEPTH", unit="m", description="trend")
     assert start == Descriptor(mnemonic="STRT", unit="m", data=1499.8790000)
     assert stop == Descriptor(mnemonic="STOP", unit="m", data=2416.3790000)
-
     assert date == Descriptor(mnemonic="DATE",
                               data="Monday, January 26 2009 14:04:02",
                               description="DATE")
@@ -75,6 +74,19 @@ def test_las_file():
     assert lf.curve_header.gamma.unit == 'gAPI'
     assert lf.curve_header.porosity.unit == 'm3/m3'
     assert lf.curve_header.dept.description == 'DEPTH'
+
+@test
+def test_dollie():
+    lf = LasFile.from_("dollie.las")
+    assert lf.curve_header.dept.unit == "F"
+    assert lf.dept[0] == 7800
+    assert lf.dept[-1] == 6680
+    assert lf.curve_header.wtoc.unit == "LBF/LBF"
+
+@test
+def test_x4():
+    lf = LasFile.from_("x4.las")
+
 
 if __name__ == "__main__":
     for test in tests:

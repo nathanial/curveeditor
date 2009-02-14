@@ -110,12 +110,16 @@ class Track(object):
         self.window.updateGeometry()
         
     def change_curve(self, old_plot, curve_name): 
-        new_plot = Plot.of(curve_name, "depth").from_(self.curve_source)
+        new_plot = None
+        try:
+            new_plot = Plot.of(curve_name, "depth").from_(self.curve_source)
+        except AttributeError:
+            new_plot = Plot.of(curve_name, "dept").from_(self.curve_source)
         self.plot_canvas.swap_plot(old_plot, new_plot)
         self.window.button_panel.swap_plot_info(old_plot, new_plot)
 
     def add_new_plot(self):
-        plot = Plot.of("dept", "depth").from_(self.curve_source)
+        plot = Plot.any_plot_from(self.curve_source)
         self.plot_canvas.add_plot(plot)
         self.window.add_plot_info(plot)
 

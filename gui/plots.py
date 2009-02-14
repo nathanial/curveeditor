@@ -130,6 +130,13 @@ class Plot(Line2D):
     def of(xcurve_name, ycurve_name):
         return PlotBuilder(xcurve_name, ycurve_name)
 
+    @staticmethod
+    def any_plot_from(curve_source):
+        xcurve = curve_source.curves[0]
+        ycurve = curve_source.curves[0]
+        return Plot(xcurve, ycurve)
+
+
 class PlotBuilder(object):
     def __init__(self, xcurve_name, ycurve_name):
         self.xcurve_name = xcurve_name
