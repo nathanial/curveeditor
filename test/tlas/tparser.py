@@ -68,8 +68,14 @@ def test_las_data():
     for curve in curves:
         assert len(curve.to_list()) == 9
 
+@test
+def test_las_file():
+    lf = LasFile.from_("test.las")
+    assert lf.dept[0] == 1501.6290000
+    assert lf.curve_header.gamma.unit == 'gAPI'
+    assert lf.curve_header.porosity.unit == 'm3/m3'
+    assert lf.curve_header.dept.description == 'DEPTH'
 
-    
 if __name__ == "__main__":
     for test in tests:
         test()

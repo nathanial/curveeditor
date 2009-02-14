@@ -13,12 +13,12 @@ def preprocess_str(obj):
         return obj
 
 class LasFile(object):
-    def __init__(self, version_header, well_header, curve_header, parameter_header, data_rows):
+    def __init__(self, version_header, well_header, curve_header, parameter_header, curves):
         self.version_header = version_header
         self.well_header = well_header
         self.curve_header = curve_header
         self.parameter_header = parameter_header
-        self.curves = LasCurve.from_rows(data_rows, self.curve_header)
+        self.curves = curves
 
         for mnemonic in self.curve_header.mnemonics():
             field = LasCurve.find_with_mnemonic(mnemonic, self.curves)
@@ -34,8 +34,8 @@ class LasFile(object):
 
     @staticmethod
     def from_(path):
-        from parser import parse
-        return parse("las_file", read_file(path))
+        from my_parser import Parser
+        return Parser(read_file(path)).las_file()
 
     @staticmethod
     def is_lasfile(filename):

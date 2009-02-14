@@ -5,6 +5,7 @@ from util import subdivide
 import test.data as data
 
 num_regex = "-?\d+([.]\d+)?"
+start_symbols = ["~A", "~C", "~W", "~P", "~V"]
 
 def is_number(text):
     return re.match(num_regex, text)
@@ -21,6 +22,24 @@ class Parser:
         self.input = input
         self.cursor = 0
 
+    def las_file(self):
+        version_header = self.version_header()
+        print "version header"
+        well_header = self.well_header()
+        print "well header"
+        curve_header = self.curve_header()
+        print "curve header"
+        parameter_header = self.parameter_header()
+        print "parameter header"
+        las_data = self.las_data(curve_header)
+        print "las data"
+        return LasFile(version_header,
+                       well_header,
+                       curve_header,
+                       parameter_header,
+                       las_data)
+        
+
     def well_header(self): 
         self.well_start()
         descriptors = self.descriptors()
@@ -31,7 +50,8 @@ class Parser:
         assert self.linep().get("~W.*")
 
     def version_header(self):
-        self.version_start()
+        self.skip_spaces()
+        assert self.linep().get("~V.*")
         version = self.linep().skip("VERS[.]").upto(":").strip()        
         version = to_num(version)        
 
@@ -45,18 +65,17 @@ class Parser:
 
         return VersionHeader(version, wrap)
 
-    def version_start(self):
-        self.skip_spaces()
-        assert self.linep().get("~V.*")
-
     def curve_header(self):
-        self.curve_start()
+        self.skip_spaces()
+        assert self.linep().get("~C.*")
         descriptors = self.descriptors()
         return CurveHeader(descriptors)
 
-    def curve_start(self):
+    def parameter_header(self):
         self.skip_spaces()
-        assert self.linep().get("~C.*")
+        assert self.linep().get("~P.*")
+        descriptors = self.descriptors()
+        return ParameterHeader(descriptors)
 
     def las_data(self, curve_header):
         self.skip_spaces()
@@ -89,6 +108,9 @@ class Parser:
         self.skip_spaces()
         line = self.line()
         if line:
+            if line.strip()[:2] in start_symbols: 
+                self.backtrack(line)
+                return
             parser = Parser(line)
             mnemonic = parser.upto("[.]")
             unit = parser.zapto("[ ]")
@@ -105,11 +127,16 @@ class Parser:
         match = re.match("\A[\n\r\t ]+", self.current_input())
         if match: self.cursor += match.end()
 
+    def backtrack(self, text):
+        self.cursor -= len(text)
+
     def line(self):
         ret = self.zapto("\n")
         if not ret:
             ret = self.current_input()
             self.cursor = len(self.input)
+        elif ret.strip()[0] == "#":
+            ret = self.line()
         return ret
         
         
