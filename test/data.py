@@ -45,16 +45,27 @@ Gamma .gAPI               : Gamma
 DEPTH .m                  : trend
 """
 
-text['descriptors'] = [
-    "DEPT .m                   : DEPTH\n",
-    "NetGross .                : NetGross\n",
-    "Facies .                  : Facies\n",
-    "Porosity .m3/m3           : Porosity\n",
-    "Gamma .gAPI               : Gamma\n",
-    "DEPTH .m                  : trend\n",
-    "STRT .m      1499.8790000 :",
-    "STOP .m      2416.3790000 :",
-    ]
+text['descriptors'] = dict(
+    dept="DEPT .m                   : DEPTH\n",
+    netgross="NetGross .                : NetGross\n",
+    facies="Facies .                  : Facies\n",
+    porosity="Porosity .m3/m3           : Porosity\n",
+    gamma="Gamma .gAPI               : Gamma\n",
+    depth="DEPTH .m                  : trend\n",
+    strt="STRT .m      1499.8790000 :",
+    stop="STOP .m      2416.3790000 :",
+    step="STEP .m     0.00000000 :",
+    null="NULL .        -999.250000 :",
+    comp="COMP.           : COMPANY",
+    well="WELL.  A10   : WELL",
+    fld="FLD.            : FIELD",
+    loc="LOC.            : LOCATION",
+    srvc="SRVC.           : SERVICE COMPANY",
+    date="DATE.  Monday, January 26 2009 14:04:02   : DATE",
+    prov="PROV.           : PROVINCE",
+    uwi="UWI.      : UNIQUE WELL ID",
+    api="API.            : API NUMBER",
+    )
 
 text['version_header'] = """
 ~Version information

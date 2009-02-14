@@ -8,29 +8,37 @@ test = partial(test, tests)
 
 @test 
 def test_descriptor_lexing():
-    def lex_from(n):
+    def lex(name):
         lexer = LasLexer()
-        lexer.input(data.text['descriptors'][n])
+        lexer.input(data.text['descriptors'][name])
         tokens = [tok for tok in lexer]
         types = map(lambda t: t.type, tokens)
         values = map(lambda t: t.value, tokens)
         return tokens, types, values
 
-    tokens, types, values = lex_from(0)
-    assert types == ["WORD", "DOT", "WORD", "COLON", "WORD"]
-    assert values == ["DEPT", ".", "m", ":", "DEPTH"]
+    tokens, types, values = lex('dept')
+    print types
+    print values
+    assert types == ["WORD", "UNIT", "COLON", "WORD"]
+    assert values == ["DEPT", "m", ":", "DEPTH"]
 
-    tokens,types,values = lex_from(1)
+    tokens,types,values = lex('netgross')
     assert types == ["WORD", "DOT", "COLON", "WORD"]
     assert values == ["NetGross", ".", ":", "NetGross"]
 
-    tokens,types,values = lex_from(7)
-    assert types == ["WORD", "DOT", "WORD", "NUMBER", "COLON"]
-    assert values == ["STOP", ".", "m", 2416.3790000, ":"]
+    tokens,types,values = lex('stop')
+    assert types == ["WORD", "UNIT", "NUMBER", "COLON"]
+    assert values == ["STOP", "m", "2416.3790000", ":"]
 
-    tokens,types,values = lex_from(3)
-    assert types == ["WORD", "DOT", "WORD", "COLON", "WORD"]
-    assert values == ["Porosity", ".", "m3/m3", ":", "Porosity"]
+    tokens,types,values = lex('porosity')
+    assert types == ["WORD", "UNIT", "COLON", "WORD"]
+    assert values == ["Porosity", "m3/m3", ":", "Porosity"]
+
+    tokens,types,values = lex('date')
+    assert types == ["WORD", "DOT", "DATA", "COLON", "WORD"]
+    assert values == ["DATE", ".", "Monday, January 26 2009 14:04:02", ":", "DATE"]
+
+    
 
 @test
 def test_version_header():
@@ -39,7 +47,7 @@ def test_version_header():
     tokens = [tok for tok in lexer]
     assert tokens[0].type == "VERSION_START"
     assert tokens[2].value == "VERS"
-    assert tokens[4].value == 2.0
+    assert tokens[4].value == "2.0"
     assert tokens[6].value == "WRAP"
     assert tokens[8].value == "NO"
     
@@ -47,27 +55,23 @@ def test_version_header():
 def test_well_header():
     lexer = LasLexer()
     lexer.input(data.text['well_header'])
-    tokens [tok for tok in lexer]
-
+    tokens = [tok for tok in lexer]
+    assert tokens[0].type == "WELL_START"
 
 @test
 def test_curve_header():
     lexer = LasLexer()
     lexer.input(data.text['curve_header'])
     tokens = [tok for tok in lexer]
+        
     assert tokens[0].type == "CURVE_START"
-    for tok in tokens: print tok
-    print
 
 @test
 def test_las_data():
     lexer = LasLexer()
     lexer.input(data.text['las_data'])
-    for tok in lexer:
-        print tok
-    print
-
-
+    tokens = [tok for tok in lexer]
+    assert tokens[0].type == "DATA_START"
 
 if __name__ == "__main__":
     for test in tests:
