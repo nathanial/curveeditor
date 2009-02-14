@@ -24,15 +24,10 @@ class Parser:
 
     def las_file(self):
         version_header = self.version_header()
-        print "version header"
         well_header = self.well_header()
-        print "well header"
         curve_header = self.curve_header()
-        print "curve header"
         parameter_header = self.parameter_header()
-        print "parameter header"
         las_data = self.las_data(curve_header)
-        print "las data"
         return LasFile(version_header,
                        well_header,
                        curve_header,

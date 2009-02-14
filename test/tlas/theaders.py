@@ -1,6 +1,6 @@
 from test.test_util import test
 from util import partial
-import parser
+from my_parser import Parser
 from test import data
 
 tests = []
@@ -9,7 +9,8 @@ test = partial(test, tests)
 @test 
 def test_to_las():
     ch = data.curve_header
-    nch = parser.parse("curve_header", ch.to_las())
+    parser = Parser(ch.to_las())
+    nch = parser.curve_header()
     assert ch == nch
 
 if __name__ == "__main__":

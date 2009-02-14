@@ -25,11 +25,11 @@ class LasFile(object):
             setattr(self, mnemonic, field)
 
     def __eq__(self,that):
-        if not isinstance(that, LasFile): return False
-        return (self.version_header == that.version_header and
-                self.well_header == that.well_header and
-                self.curve_header == that.curve_header and 
-                self.parameter_header == that.parameter_header and
+        return (isinstance(that, LasFile) and
+                self.version_header == that.version_header,
+                self.well_header == that.well_header,
+                self.curve_header == that.curve_header,
+                self.parameter_header == that.parameter_header,
                 self.curves == that.curves)
 
     @staticmethod
@@ -81,10 +81,11 @@ class Descriptor(object):
                 self.description == that.description)
 
     def to_las(self):
-        return (self.mnemonic + "." + 
-                (self.unit or " ") + " " + 
-                (self.data or " ") + " : " + 
-                (self.description or " "))
+        data, unit, description = " ", " ", " "
+        if self.data != None: data = self.data
+        if self.unit != None: unit = self.unit
+        if self.description != None: description = self.description
+        return (self.mnemonic+"."+unit+" "+str(data)+" : "+description)
 
 class HasDescriptors(object):
     def mnemonics(self):

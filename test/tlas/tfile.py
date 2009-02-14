@@ -2,7 +2,7 @@ from test.test_util import test
 from las.file import *
 from las.headers import *
 from util import subdivide, partial, times, float_eq
-import parser
+from my_parser import Parser
 from test import data
 
 tests = []
@@ -31,7 +31,8 @@ def descriptor_to_las():
     d = Descriptor("DEPT", "m", None, "DEPTH")
     print "d = %s " % d
     print "d.to_las = %s " % d.to_las()
-    nd = parser.parse("descriptor", d.to_las())
+    parser = Parser(d.to_las())
+    nd = parser.descriptor()
     print "nd = %s " % nd
     assert d == nd
     
@@ -40,17 +41,18 @@ def descriptor_to_las():
 def data_to_las():
     ch = data.curve_header
     cols = len(ch.descriptors)
-    data_rows = subdivide(parser.parse("data_rows", data.text['las_data']), cols)
-    curves = LasCurve.from_rows(data_rows, ch)
+    parser = Parser(data.text['las_data'])
+    curves = parser.las_data(ch)
 
-    ndata_rows = subdivide(parser.parse("data_rows", LasCurve.to_las(curves)), cols)
-    ncurves = LasCurve.from_rows(ndata_rows, data.curve_header)
+    parser = Parser(LasCurve.to_las(curves))
+    ncurves = parser.las_data(ch)
     assert curves == ncurves
 
 @test
 def lasfile_to_las():
     ol = LasFile.from_(lpath)
-    nl = parser.parse("las_file", ol.to_las())
+    parser = Parser(ol.to_las())
+    nl = parser.las_file()
     assert ol == nl
     
 @test
