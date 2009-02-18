@@ -207,6 +207,7 @@ class PlotCanvas(FigureCanvas):
         self.increment = 0
         self.lowest_depth = None
         self.highest_depth = None
+        self.animation_engaged = False
         FigureCanvas.__init__(self, self.fig)
         self.setParent(parent)
         fixed_size_policy(self)
@@ -258,19 +259,34 @@ class PlotCanvas(FigureCanvas):
         self._reset_ylim()
 
     def animation_on(self):
+        self.animation_engaged = True
         for plot in self.plots:
-            plot.animation_on()
+            plot.set_animated(True)
+        self.draw()
+        self.animation_background = self.copy_from_bbox(self.axes.bbox)
+        for plot in self.plots:
+            self.axes.draw_artist(plot)
+        self.blit(self.axes.bbox)
+
+    def update_animation(self):
+        self.restore_region(self.animation_background)
+        for plot in self.plots:
+            self.axes.draw_artist(plot)
+        self.blit(self.axes.bbox)
     
     def animation_off(self):
+        self.animation_engaged = False
         for plot in self.plots:
-            plot.animation_off()
+            plot.set_animated(False)
+        self.draw()
 
     def _reset_ylim(self):
         self.axes.set_ylim(self.lowest_depth + self._percentage_increment(),
                            self.lowest_depth + 100 + self._percentage_increment())
-        for plot in self.plots:
-            plot.update_animation()
-        
+        if self.animation_engaged:
+            self.update_animation()
+        else:
+            self.draw()
 
     def _percentage_increment(self):
         return ((self.increment + 1) / 100.0) * self.depth_range()
