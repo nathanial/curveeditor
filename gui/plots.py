@@ -1,6 +1,7 @@
 from las.file import LasCurve, transform
 from matplotlib.lines import Line2D
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 from PyQt4 import QtGui, QtCore
 from PyQt4.QtCore import SIGNAL, QSize
@@ -12,6 +13,7 @@ from gui.gutil import minimum_size_policy, fixed_size_policy
 from util import *
 
 class Plot(Line2D):
+    lock = None
     def __init__(self, xfield = None, yfield = None, canvas = None, *args, **kwargs):
         self.canvas = canvas
         self.original_xfield = xfield
@@ -29,7 +31,7 @@ class Plot(Line2D):
         Line2D.__init__(self, 
                         self.current_xfield.to_list(), 
                         self.current_yfield.to_list(),
-                        *args, **kwargs)
+                        *args,**kwargs)
 
     def name(self):
         return self.original_xfield.name()
@@ -42,23 +44,50 @@ class Plot(Line2D):
         self.cidmotion = self.canvas.mpl_connect(
             'motion_notify_event', self.drag_on_motion)
         self.draggable = True
-        
+
     def drag_on_press(self, event):
+        if Plot.lock is not None: return
         contains,attrd = self.contains(event)
         if not contains: return
+        self.animated_on()
+        Plot.lock = self
         self.press = attrd['ind']
 
+    def animation_on(self):
+        canvas = self.canvas
+        axes = self.canvas.axes
+        self.set_animated(True)
+        canvas.draw()
+        self.background = canvas.copy_from_bbox(axes.bbox)
+        axes.draw_artist(self)
+        canvas.blit(axes.bbox)
+
+    def update_animation(self):
+        canvas = self.canvas
+        axes = canvas.axes
+        canvas.restore_region(self.background)
+        axes.draw_artist(self)
+        canvas.blit(axes.bbox)
+
+    def animation_off(self):
+        self.set_animated(False)
+        self.background = None
+        self.canvas.draw()
+
     def drag_on_motion(self, event):
+        if not Plot.lock is self: return
         if self.press is None: return
         ind = self.press
         if len(ind) > 1: ind = ind[0]
         self.current_xfield[ind] = event.xdata
         self.set_xdata(self.current_xfield.to_list())
-        self.canvas.draw()
+        self.update_animation()
 
     def drag_on_release(self, event):
+        if not Plot.lock is self: return
         self.press = None
-        self.canvas.draw()
+        Plot.lock = None
+        self.animated_off()
 
     def disconnect_draggable(self):
         self.canvas.mpl_disconnect(self.cidpress)
@@ -130,20 +159,13 @@ class Plot(Line2D):
     def of(xcurve_name, ycurve_name):
         return PlotBuilder(xcurve_name, ycurve_name)
 
-    @staticmethod
-    def any_plot_from(curve_source):
-        xcurve = curve_source.curves[0]
-        ycurve = curve_source.curves[0]
-        return Plot(xcurve, ycurve)
-
-
 class PlotBuilder(object):
     def __init__(self, xcurve_name, ycurve_name):
         self.xcurve_name = xcurve_name
         self.ycurve_name = ycurve_name
 
     def from_(self, curve_source):
-        xcurve,ycurve = curve_source.get_curves(
+        xcurve,ycurve = curve_source.curves(
             self.xcurve_name,self.ycurve_name)
         return Plot(xcurve, ycurve)
 
@@ -190,6 +212,7 @@ class PlotCanvas(FigureCanvas):
         fixed_size_policy(self)
 
     def swap_plot(self, old, new):
+        old.disconnect_draggable()
         self._insert_plot(new, lambda: swap(self.plots, old, new))
 
     def add_plot(self, plot):
@@ -200,6 +223,7 @@ class PlotCanvas(FigureCanvas):
         self._insert_plot(plot, lambda: self.plots.append(plot))
 
     def remove_plot(self, plot):
+        plot.disconnect_draggable()
         plot.canvas = None
         index = self.plots.index(plot)
         del self.plots[index]
@@ -233,9 +257,20 @@ class PlotCanvas(FigureCanvas):
         self.increment = increment
         self._reset_ylim()
 
+    def animation_on(self):
+        for plot in self.plots:
+            plot.animation_on()
+    
+    def animation_off(self):
+        for plot in self.plots:
+            plot.animation_off()
+
     def _reset_ylim(self):
         self.axes.set_ylim(self.lowest_depth + self._percentage_increment(),
                            self.lowest_depth + 100 + self._percentage_increment())
+        for plot in self.plots:
+            plot.update_animation()
+        
 
     def _percentage_increment(self):
         return ((self.increment + 1) / 100.0) * self.depth_range()
@@ -246,6 +281,10 @@ class PlotCanvas(FigureCanvas):
     def first_plot(self):
         return len(self.plots) == 0
 
+    def draw(self):
+        self.replot = True
+        FigureCanvasAgg.draw(self)
+        self.update()
 
     @staticmethod
     def xrange(plots):        

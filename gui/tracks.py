@@ -4,7 +4,7 @@ from PyQt4.QtGui import QMainWindow, QMenu, QWidget,\
     QVBoxLayout, QApplication, QMessageBox, QHBoxLayout,\
     QFileDialog, QSlider, QComboBox, QLayout, QPushButton,\
     QDialog, QRadioButton
-from PyQt4.QtCore import SIGNAL, QSize
+from PyQt4.QtCore import SIGNAL, QSize, QMutex
 from numpy import arange, sin, pi
 import matplotlib.pyplot as plt
 from util import times, each, lfind, partial, swap
@@ -12,6 +12,7 @@ from las.file import transform
 from gui.gutil import minimum_size_policy, fixed_size_policy
 from gui.plots import *
 from dummy import *
+import thread
 
 class TrackView(QWidget):
     def __init__(self, main_window, parent = None):
@@ -24,6 +25,7 @@ class TrackView(QWidget):
 
         self.tracks = []
         self.curve_source = None
+        self.changing_depth = False
 
     def update_curve_source(self, curve_source):
         self.curve_source = curve_source
@@ -56,10 +58,6 @@ class TrackView(QWidget):
         QApplication.processEvents()
         self.main_window.adjustSize()
 
-    def change_depth(self, increment):
-        for track in self.tracks: track.set_increment(increment)
-        for track in self.tracks: track.draw()
-
     def replace_dummy_track(self):
         self.remove_dummy_track()
         self.add_new_track()
@@ -87,6 +85,23 @@ class TrackView(QWidget):
         self.layout.addWidget(self.depth_slider)
         QWidget.connect(self.depth_slider, SIGNAL("valueChanged(int)"),
                         self.change_depth)
+        QWidget.connect(self.depth_slider, SIGNAL("sliderPressed()"),
+                        self.animate_tracks)
+        QWidget.connect(self.depth_slider, SIGNAL("sliderReleased()"),
+                        self.deanimate_tracks)
+
+    def change_depth(self, increment):
+        for track in self.tracks: 
+            track.set_increment(increment)
+
+    def animate_tracks(self):
+        for track in self.tracks:
+            track.animation_on()
+    
+    def deanimate_tracks(self):
+        for track in self.tracks:
+            track.animation_off()
+            
 
 
 class TracksMenu(QMenu):
@@ -119,7 +134,7 @@ class Track(object):
         self.window.button_panel.swap_plot_info(old_plot, new_plot)
 
     def add_new_plot(self):
-        plot = Plot.any_plot_from(self.curve_source)
+        plot = self._default_depth_plot()
         self.plot_canvas.add_plot(plot)
         self.window.add_plot_info(plot)
 
@@ -129,7 +144,7 @@ class Track(object):
     def set_increment(self, increment):
         self.plot_canvas.set_increment(increment)
 
-    def draw(self):
+    def draw(self): 
         self.plot_canvas.draw()
 
     def available_curves(self):
@@ -138,6 +153,24 @@ class Track(object):
     def update_curve_source(self, curve_source):
         self.curve_source = curve_source
         self.plot_canvas.remove_all_plots()
+
+    def _default_depth_plot(self):
+        cs = self.curve_source
+        if cs.has_curve("dept"):
+            ycurve = cs.curve("dept")
+            xcurve = cs.curve("dept")
+        elif cs.has_curve("depth"):
+            ycurve = cs.curve("depth")
+            xcurve = cs.curve("depth")
+        else:
+            raise "Cannot find depth curve!"
+        return Plot(xcurve, ycurve)
+
+    def animation_on(self):
+        self.plot_canvas.animation_on()
+    
+    def animation_off(self):
+        self.plot_canvas.animation_off()
 
 class TrackWindow(QWidget):
     def __init__(self, track, parent = None):
@@ -214,3 +247,6 @@ class TrackButtonPanel(QWidget):
 class DepthSlider(QSlider):
     def __init__(self, parent = None):
         QSlider.__init__(self, QtCore.Qt.Vertical, parent)
+
+    def valueChanged(self, event):
+        print "value changed"
