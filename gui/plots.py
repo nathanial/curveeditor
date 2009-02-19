@@ -325,7 +325,7 @@ class PlotsContextMenu(QMenu):
         self.track = track
         plots = track.plots()
 
-        self.addAction('&Add Curve', self.track.add_new_plot)        
+        self.addAction('&Add Curve', self.track.add_new_plot)
         for plot in plots:
             self.addMenu(PlotContextMenu(self, plot))
 
@@ -341,6 +341,7 @@ class PlotContextMenu(QMenu):
         marker_menu = PlotMarkerMenu(self,plot)
         self.addMenu(color_menu)
         self.addMenu(marker_menu)
+        self.addAction('&Remove', lambda: parent.track.remove_curve(plot))
 
 class PlotColorMenu(QMenu):
     def __init__(self, parent,plot):
