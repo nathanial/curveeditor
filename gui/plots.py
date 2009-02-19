@@ -11,9 +11,9 @@ from PyQt4.QtGui import QMainWindow, QMenu, QWidget,\
     QDialog, QRadioButton, QLabel
 from gui.gutil import minimum_size_policy, fixed_size_policy
 from util import *
+import thread
 
 class Plot(Line2D):
-    lock = None
     def __init__(self, xfield = None, yfield = None, canvas = None, *args, **kwargs):
         self.canvas = canvas
         self.original_xfield = xfield
@@ -35,65 +35,6 @@ class Plot(Line2D):
 
     def name(self):
         return self.original_xfield.name()
-
-    def connect_draggable(self):
-        self.cidpress = self.canvas.mpl_connect(
-            'button_press_event', self.drag_on_press)
-        self.cidrelease = self.canvas.mpl_connect(
-            'button_release_event', self.drag_on_release)
-        self.cidmotion = self.canvas.mpl_connect(
-            'motion_notify_event', self.drag_on_motion)
-        self.draggable = True
-
-    def drag_on_press(self, event):
-        if Plot.lock is not None: return
-        contains,attrd = self.contains(event)
-        if not contains: return
-        self.animated_on()
-        Plot.lock = self
-        self.press = attrd['ind']
-
-    def animation_on(self):
-        canvas = self.canvas
-        axes = self.canvas.axes
-        self.set_animated(True)
-        canvas.draw()
-        self.background = canvas.copy_from_bbox(axes.bbox)
-        axes.draw_artist(self)
-        canvas.blit(axes.bbox)
-
-    def update_animation(self):
-        canvas = self.canvas
-        axes = canvas.axes
-        canvas.restore_region(self.background)
-        axes.draw_artist(self)
-        canvas.blit(axes.bbox)
-
-    def animation_off(self):
-        self.set_animated(False)
-        self.background = None
-        self.canvas.draw()
-
-    def drag_on_motion(self, event):
-        if not Plot.lock is self: return
-        if self.press is None: return
-        ind = self.press
-        if len(ind) > 1: ind = ind[0]
-        self.current_xfield[ind] = event.xdata
-        self.set_xdata(self.current_xfield.to_list())
-        self.update_animation()
-
-    def drag_on_release(self, event):
-        if not Plot.lock is self: return
-        self.press = None
-        Plot.lock = None
-        self.animated_off()
-
-    def disconnect_draggable(self):
-        self.canvas.mpl_disconnect(self.cidpress)
-        self.canvas.mpl_disconnect(self.cidrelease)
-        self.canvas.mpl_disconnect(self.cidmotion)
-        self.draggable = False
 
     def scale(self,xscale = 1.0, yscale = 1.0, xoffset = 0, yoffset = 0):
         self.xscale = xscale
@@ -135,6 +76,10 @@ class Plot(Line2D):
         if self.canvas: self.canvas.draw()
         return ret
 
+    @staticmethod
+    def of(xcurve_name, ycurve_name):
+        return PlotBuilder(xcurve_name, ycurve_name)
+
     #Y Methods
     def scaled_yrange(self):
         return self.yscale * self.yrange()
@@ -155,9 +100,61 @@ class Plot(Line2D):
     def offset_xmax(self):
         return self.xoffset + self.xmax()
 
-    @staticmethod
-    def of(xcurve_name, ycurve_name):
-        return PlotBuilder(xcurve_name, ycurve_name)
+    #Dragging methods
+    def connect_draggable(self):
+        self.cidpress = self.canvas.mpl_connect(
+            'button_press_event', self.drag_on_press)
+        self.cidrelease = self.canvas.mpl_connect(
+            'button_release_event', self.drag_on_release)
+        self.cidmotion = self.canvas.mpl_connect(
+            'motion_notify_event', self.drag_on_motion)
+        self.draggable = True
+
+    def drag_on_press(self, event):
+        contains,attrd = self.contains(event)
+        if not contains: return
+        self.animation_on()
+        self.press = attrd['ind']
+
+    def drag_on_motion(self, event):
+        if self.press is None: return
+        ind = self.press
+        if len(ind) > 1: ind = ind[0]
+        self.current_xfield[ind] = event.xdata
+        self.set_xdata(self.current_xfield.to_list())
+        self.update_animation()
+
+    def drag_on_release(self, event):
+        self.press = None
+        self.animation_off()
+
+    def disconnect_draggable(self):
+        self.canvas.mpl_disconnect(self.cidpress)
+        self.canvas.mpl_disconnect(self.cidrelease)
+        self.canvas.mpl_disconnect(self.cidmotion)
+        self.draggable = False
+
+    #Animation methods
+    def animation_on(self):
+        canvas = self.canvas
+        axes = self.canvas.axes
+        self.set_animated(True)
+        canvas.draw()
+        self.background = canvas.copy_from_bbox(axes.bbox)
+        axes.draw_artist(self)
+        canvas.blit(axes.bbox)
+
+    def update_animation(self):
+        canvas = self.canvas
+        axes = canvas.axes
+        canvas.restore_region(self.background)
+        axes.draw_artist(self)
+        canvas.blit(axes.bbox)
+
+    def animation_off(self):
+        self.set_animated(False)
+        self.background = None
+        self.canvas.draw()
 
 class PlotBuilder(object):
     def __init__(self, xcurve_name, ycurve_name):

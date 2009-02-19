@@ -2,7 +2,7 @@ from PyQt4 import QtGui
 from PyQt4.QtGui import QWidget, QVBoxLayout
 from gui.plots import Plot
 
-class RunView(QWidget):
+class RunsView(QWidget):
     def __init__(self, parent = None):
         QWidget.__init__(self, parent)
         minimum_size_policy(self)

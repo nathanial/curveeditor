@@ -1,38 +1,41 @@
-import sys, os, random
+from __future__ import with_statement
 from PyQt4 import QtGui, QtCore
 from PyQt4.QtGui import QMainWindow, QMenu, QWidget,\
     QVBoxLayout, QApplication, QMessageBox, QHBoxLayout,\
     QFileDialog, QSlider, QComboBox, QLayout, QPushButton,\
     QDialog, QRadioButton
 from PyQt4.QtCore import SIGNAL, QSize, QMutex
-from numpy import arange, sin, pi
-import matplotlib.pyplot as plt
-from util import times, each, lfind, partial, swap
-from las.file import transform
 from gui.gutil import minimum_size_policy, fixed_size_policy
 from gui.plots import *
+from las.file import LasFile
 from dummy import *
-import thread
 
-class TrackView(QWidget):
+class TracksView(QWidget):
     def __init__(self, main_window, parent = None):
         QWidget.__init__(self,parent)
         minimum_size_policy(self)
         self.main_window = main_window
         self.layout = QHBoxLayout(self)
+        self._setup_file_menu()
         self._setup_tracks_menu()
         self._setup_depth_slider()
-
         self.tracks = []
+        self.dummy_track = None
         self.curve_source = None
         self.changing_depth = False
+
+    def select_file(self):
+        self.file_menu.openFile()
 
     def update_curve_source(self, curve_source):
         self.curve_source = curve_source
         if self.dummy_track:
             self.replace_dummy_track()
-        for track in self.tracks:
-            track.update_curve_source(curve_source)
+        elif not self.tracks:
+            self.add_new_track()
+        else:
+            for track in self.tracks:
+                track.update_curve_source(curve_source)
 
     def add_new_track(self):
         track = Track(self.curve_source, self)
@@ -41,6 +44,7 @@ class TrackView(QWidget):
     def add_track(self, track):
         self.layout.addWidget(track.window)
         self.tracks.append(track)
+        self.resize_after_remove()
 
     def remove_track(self):
         track = self.tracks[-1]
@@ -72,6 +76,13 @@ class TrackView(QWidget):
         self.layout.removeWidget(self.dummy_track.window)
         self.dummy_track = None
 
+    def _setup_file_menu(self):
+        self.file_menu = TracksFileMenu(self.main_window)
+        self.main_window.menuBar().addMenu(self.file_menu)
+        QWidget.connect(self.file_menu, SIGNAL("update_curve_source"),
+                        self.update_curve_source)
+    
+
     def _setup_tracks_menu(self):
         self.tracks_menu = TracksMenu(self.main_window)
         self.main_window.menuBar().addMenu(self.tracks_menu)
@@ -101,20 +112,6 @@ class TrackView(QWidget):
     def deanimate_tracks(self):
         for track in self.tracks:
             track.animation_off()
-            
-
-
-class TracksMenu(QMenu):
-    def __init__(self, parent):
-        QMenu.__init__(self, '&Tracks', parent)
-        self.addAction('&Add Track', self.addTrack)
-        self.addAction('&Remove Track', self.removeTrack)
-        
-    def addTrack(self):
-        self.emit(SIGNAL("add_track"))
-        
-    def removeTrack(self):
-        self.emit(SIGNAL("remove_track"))
 
 class Track(object):
     def __init__(self, curve_source, parent = None):
@@ -153,17 +150,20 @@ class Track(object):
     def update_curve_source(self, curve_source):
         self.curve_source = curve_source
         self.plot_canvas.remove_all_plots()
+        self.window.remove_all_plot_info()
 
     def _default_depth_plot(self):
         cs = self.curve_source
+        depth_curve = None
         if cs.has_curve("dept"):
-            ycurve = cs.curve("dept")
-            xcurve = cs.curve("dept")
+            depth_curve = "dept"
         elif cs.has_curve("depth"):
-            ycurve = cs.curve("depth")
-            xcurve = cs.curve("depth")
+            depth_curve = "depth"
         else:
             raise "Cannot find depth curve!"
+
+        ycurve = cs.curve(depth_curve)
+        xcurve = cs.curve(depth_curve)
         return Plot(xcurve, ycurve)
 
     def animation_on(self):
@@ -172,20 +172,42 @@ class Track(object):
     def animation_off(self):
         self.plot_canvas.animation_off()
 
-class TrackWindow(QWidget):
-    def __init__(self, track, parent = None):
-        QWidget.__init__(self, parent)
-        fixed_size_policy(self)
-        self.track = track
-        self.layout = QVBoxLayout(self)
-        self.button_panel = TrackButtonPanel(track, self)
+class TracksMenu(QMenu):
+    def __init__(self, parent):
+        QMenu.__init__(self, '&Tracks', parent)
+        self.addAction('&Add Track', self.addTrack)
+        self.addAction('&Remove Track', self.removeTrack)
+        
+    def addTrack(self):
+        self.emit(SIGNAL("add_track"))
+        
+    def removeTrack(self):
+        self.emit(SIGNAL("remove_track"))
 
-    def contextMenuEvent(self, event):
-        PlotsContextMenu(self.track, self).popup(event.globalPos())
+class TracksFileMenu(QMenu):
+    def __init__(self, parent):
+        self.app_window = parent
+        QMenu.__init__(self, '&File', parent)
+        self.addAction('&Open', self.openFile,
+                       QtCore.Qt.CTRL + QtCore.Qt.Key_O)
+        self.addAction('&Save', self.saveFile,
+                       QtCore.Qt.CTRL + QtCore.Qt.Key_S)
 
-    def add_plot_info(self, plot):
-        self.button_panel.add_plot_info(plot)
-        self.updateGeometry()
+    def openFile(self):
+        dialog = QFileDialog(self, "Open LAS")
+        dialog.setFileMode(QFileDialog.AnyFile)
+        if dialog.exec_():
+            self.filename, = dialog.selectedFiles()
+            if LasFile.is_lasfile(self.filename):
+                curve_source = LasFile.from_(self.filename)
+            self.las_file = curve_source
+            self.emit(SIGNAL("update_curve_source"), curve_source)            
+
+    def saveFile(self):
+        with open(self.filename, "w") as f:
+            f.write(self.las_file.to_las())
+
+
 
 class TrackButtonPanel(QWidget):
     def __init__(self, track, parent):
@@ -206,6 +228,12 @@ class TrackButtonPanel(QWidget):
         del self.plot_infos[index]
         deleted.hide()
         self.layout.removeWidget(deleted)
+
+    def remove_all_plot_info(self):
+        for plot_info in self.plot_infos:
+            plot_info.hide()
+        self.plot_infos = []
+        self.relayout()
 
     def swap_plot_info(self, old_plot, new_plot):
         new_info = self._build_plot_info(new_plot)
@@ -244,9 +272,40 @@ class TrackButtonPanel(QWidget):
                            SIGNAL("change_curve"),
                            self.track.change_curve)            
 
+
+class TrackWindow(QWidget):
+    def __init__(self, track, parent = None):
+        QWidget.__init__(self, parent)
+        fixed_size_policy(self)
+        self.track = track
+        self.layout = QVBoxLayout(self)
+        self.button_panel = TrackButtonPanel(track, self)
+
+    def contextMenuEvent(self, event):
+        PlotsContextMenu(self.track, self).popup(event.globalPos())
+
+    def add_plot_info(self, plot):
+        self.button_panel.add_plot_info(plot)
+        self.updateGeometry()
+    
+    def remove_all_plot_info(self):
+        self.button_panel.remove_all_plot_info()        
+
 class DepthSlider(QSlider):
     def __init__(self, parent = None):
+        self.tracks_view = parent
+        tv = parent
         QSlider.__init__(self, QtCore.Qt.Vertical, parent)
-
-    def valueChanged(self, event):
-        print "value changed"
+        self.hide()
+        QWidget.connect(tv.tracks_menu, SIGNAL("add_track"),
+                        self.hide_or_show)
+        QWidget.connect(tv.tracks_menu, SIGNAL("remove_track"),
+                        self.hide_or_show)
+        QWidget.connect(tv.file_menu, SIGNAL("update_curve_source"),
+                        self.hide_or_show)
+        
+    def hide_or_show(self):
+        if self.tracks_view.tracks == []:
+            self.hide()
+        else:
+            self.show()
