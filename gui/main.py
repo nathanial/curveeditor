@@ -1,18 +1,14 @@
 from __future__ import with_statement
-import sys, os, random
-from PyQt4 import QtGui, QtCore
+
+from PyQt4 import QtCore
 from PyQt4.QtCore import SIGNAL, QSize
-from PyQt4.QtGui import QMainWindow, QMenu, QWidget, QHBoxLayout, QFileDialog, \
-    QTabWidget
+from PyQt4.QtGui import QMainWindow, QMenu, QWidget, QHBoxLayout, QFileDialog, QTabWidget, QDialog, QListWidget, QListWidgetItem, QVBoxLayout, QPushButton, QAbstractItemView
 
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
-from numpy import arange, sin, pi
-
-from util import each
-from gui.gutil import minimum_size_policy, fixed_size_policy
-from gui.tracks import TrackView
+from gui.gutil import minimum_size_policy
+from gui.merge import MergePanel
+from gui.tracks import TrackPanel
 from las.file import LasFile
+
 
 class ApplicationWindow(QMainWindow):
     def __init__(self):
@@ -20,6 +16,7 @@ class ApplicationWindow(QMainWindow):
         QMainWindow.__init__(self)
         minimum_size_policy(self)
         self.track_views = []
+        self.merge_views = []
 
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowTitle("Curve Editor")
@@ -48,12 +45,17 @@ class ApplicationWindow(QMainWindow):
         return self.file_tab_panel.currentWidget()
 
     def create_new_track_view(self, lasfile):
-        track_view = TrackView(lasfile, self, None)
+        track_view = TrackPanel(lasfile, self, None)
         for i in range(0, self.tracks_menu.track_count):
             track_view.add_new_track()
         self.track_views.append(track_view)
         self.file_tab_panel.addTab(track_view, lasfile.name())
         return track_view
+
+    def create_new_merge_view(self, track_views):
+        merge_view = MergePanel(track_views, None)
+        self.merge_views.append(merge_view)
+        self.file_tab_panel.addTab(merge_view, merge_view.name)
 
 class FileTabPanel(QTabWidget):
     def __init__(self, main_window):
@@ -111,17 +113,57 @@ class TracksMenu(QMenu):
         self.track_count = 1
         self.main_window = main_window
         QMenu.__init__(self, '&Tracks', main_window)
-        self.addAction('&Add Track', self.addTrack)
-        self.addAction('&Remove Track', self.removeTrack)
+        self.addAction('&Add', self.add_track)
+        self.addAction('&Remove', self.remove_track)
+        self.addAction('&Merge', self.merge_tracks)
         
-    def addTrack(self):
+    def add_track(self):
         self.track_count += 1
         for track_view in self.main_window.track_views:
             track_view.add_new_track()
         
-    def removeTrack(self):
+    def remove_track(self):
         self.track_count -= 1
         for track_view in self.main_window.track_views:
             track_view.remove_track()
         for track_view in self.main_window.track_views:
             track_view.resize_after_remove()
+
+    def merge_tracks(self):
+        dialog = MergeDialog(self.main_window.track_views)
+        if dialog.exec_():
+            track_views = dialog.selected_track_views()
+            self.main_window.create_new_merge_view(track_views)
+        
+class MergeDialog(QDialog):
+    def __init__(self, track_views, parent = None):
+        QDialog.__init__(self, parent)
+        self.track_views = track_views
+        self.layout = QVBoxLayout(self)
+        self.list = QListWidget(self)
+        self.list.setSelectionMode(QAbstractItemView.MultiSelection)
+        for tv in track_views:
+            name = tv.curve_source.name()
+            self.list.addItem(QListWidgetItem(name, self.list))
+
+        self.ok_button = QPushButton("ok", self)
+        minimum_size_policy(self.ok_button)
+        QWidget.connect(self.ok_button, SIGNAL("clicked()"),
+                        self.accept)
+
+        self.list.updateGeometry()
+        self.layout.addWidget(self.list)
+        self.layout.addWidget(self.ok_button)
+        self.updateGeometry()
+        self.adjustSize()
+
+    def selected_track_views(self):
+        selected = self.list.selectedItems()
+        names = [s.text() for s in selected]
+        return [tv for tv in self.track_views 
+                if tv.curve_source.name() in names]        
+
+        
+        
+        
+        

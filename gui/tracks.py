@@ -10,7 +10,7 @@ from gui.plots import *
 from las.file import LasFile
 from dummy import *
 
-class TrackView(QWidget):
+class TrackPanel(QWidget):
     def __init__(self,curve_source, main_window, parent = None):
         QWidget.__init__(self,parent)
         minimum_size_policy(self)
@@ -27,7 +27,7 @@ class TrackView(QWidget):
         self.add_track(track)
         
     def add_track(self, track):
-        self.layout.addWidget(track.window)
+        self.layout.addWidget(track)
         self.tracks.append(track)
         self.resize_after_remove()
 
@@ -37,8 +37,8 @@ class TrackView(QWidget):
 
     def remove_track(self):
         track = self.tracks[-1]
-        track.window.hide()
-        self.layout.removeWidget(track.window)
+        track.hide()
+        self.layout.removeWidget(track)
         del self.tracks[-1]
         self.resize_after_remove()
 
@@ -52,9 +52,10 @@ class TrackView(QWidget):
         self.remove_dummy_track()
         self.add_new_track()
 
-    def change_depth(self, increment):
+    def set_depth(self, percentage):
         for track in self.tracks: 
-            track.set_increment(increment)
+            track.set_depth(percentage)
+
     def resize_after_remove(self):
         self.updateGeometry()
         QApplication.processEvents()
@@ -68,7 +69,7 @@ class TrackView(QWidget):
         self.depth_slider = DepthSlider(self)
         self.layout.addWidget(self.depth_slider)
         QWidget.connect(self.depth_slider, SIGNAL("valueChanged(int)"),
-                        self.change_depth)
+                        self.set_depth)
         QWidget.connect(self.depth_slider, SIGNAL("sliderPressed()"),
                         self.animate_tracks)
         QWidget.connect(self.depth_slider, SIGNAL("sliderReleased()"),
@@ -82,62 +83,46 @@ class TrackView(QWidget):
         for track in self.tracks:
             track.animation_off()
 
-class Track(object):
+class Track(QWidget):
     def __init__(self, curve_source, parent = None):
+        QWidget.__init__(self, parent)
+        fixed_size_policy(self)
         self.curve_source = curve_source
-        self.window = TrackWindow(self, parent)
-        self.plot_canvas = PlotCanvas(self.window, width=4, height=6)
-        self.window.layout.addWidget(self.plot_canvas)
-        self.window.updateGeometry()
+        self.plot_canvas = PlotCanvas(self, width=4, height=6)
+        self.layout = QVBoxLayout(self)
+        self.button_panel = TrackButtonPanel(self, self)
+        self.layout.addWidget(self.button_panel)
+        self.layout.addWidget(self.plot_canvas)
+        self.updateGeometry()
         
-    def change_curve(self, old_plot, curve_name): 
+    def available_curves(self):
+        return self.curve_source.available_curves()
+
+    def change_plot(self, old_plot, curve_name): 
         new_plot = None
         try:
             new_plot = Plot.of(curve_name, "depth").from_(self.curve_source)
         except AttributeError:
             new_plot = Plot.of(curve_name, "dept").from_(self.curve_source)
         self.plot_canvas.swap_plot(old_plot, new_plot)
-        self.window.button_panel.swap_plot_info(old_plot, new_plot)
+        self.button_panel.swap_info(old_plot, new_plot)
 
-    def remove_curve(self, plot):
+    def remove_plot(self, plot):
         self.plot_canvas.remove_plot(plot)
-        self.window.button_panel.remove_plot_info(plot)
+        self.button_panel.remove_info(plot)
+        self.updateGeometry()
 
     def add_new_plot(self):
         plot = self._default_depth_plot()
         self.plot_canvas.add_plot(plot)
-        self.window.add_plot_info(plot)
+        self.button_panel.add_info(plot)
+        self.updateGeometry()
 
     def plots(self):
         return list(self.plot_canvas.plots)
 
-    def set_increment(self, increment):
+    def set_depth(self, increment):
         self.plot_canvas.set_increment(increment)
-
-    def draw(self): 
-        self.plot_canvas.draw()
-
-    def available_curves(self):
-        return self.curve_source.available_curves()
-
-    def update_curve_source(self, curve_source):
-        self.curve_source = curve_source
-        self.plot_canvas.remove_all_plots()
-        self.window.remove_all_plot_info()
-
-    def _default_depth_plot(self):
-        cs = self.curve_source
-        depth_curve = None
-        if cs.has_curve("dept"):
-            depth_curve = "dept"
-        elif cs.has_curve("depth"):
-            depth_curve = "depth"
-        else:
-            raise "Cannot find depth curve!"
-
-        ycurve = cs.curve(depth_curve)
-        xcurve = cs.curve(depth_curve)
-        return Plot(xcurve, ycurve)
 
     def animation_on(self):
         self.plot_canvas.animation_on()
@@ -145,33 +130,40 @@ class Track(object):
     def animation_off(self):
         self.plot_canvas.animation_off()
 
+    def _default_depth_plot(self):
+        ycurve = self.curve_source.depth_curve()
+        xcurve = self.curve_source.depth_curve()
+        return Plot(xcurve, ycurve)
+
+    def contextMenuEvent(self, event):
+        PlotsContextMenu(self, self).popup(event.globalPos())
+
 class TrackButtonPanel(QWidget):
     def __init__(self, track, parent):
         QWidget.__init__(self, parent)
         minimum_size_policy(self)
         self.track = track
         self.plot_infos = []
-        parent.layout.addWidget(self)
         self.layout = QVBoxLayout(self)
 
-    def add_plot_info(self, plot):
+    def add_info(self, plot):
         pi = self._build_plot_info(plot)
         self.layout.addWidget(pi)
         self.plot_infos.append(pi)
     
-    def remove_plot_info(self, plot):
+    def remove_info(self, plot):
         deleted, index = self._destroy_plot_info(plot)
         del self.plot_infos[index]
         deleted.hide()
         self.layout.removeWidget(deleted)
 
-    def remove_all_plot_info(self):
+    def remove_all_info(self):
         for plot_info in self.plot_infos:
             plot_info.hide()
         self.plot_infos = []
         self.relayout()
 
-    def swap_plot_info(self, old_plot, new_plot):
+    def swap_info(self, old_plot, new_plot):
         new_info = self._build_plot_info(new_plot)
         old_info, index = self._destroy_plot_info(old_plot)
         old_info.hide()
@@ -201,36 +193,14 @@ class TrackButtonPanel(QWidget):
     def _connect_to_track(self, plot_info):
         QWidget.connect(plot_info,
                         SIGNAL("change_curve"),
-                        self.track.change_curve)
+                        self.track.change_plot)
 
     def _disconnect_from_track(self, plot_info):
         QWidget.disconnect(plot_info,
                            SIGNAL("change_curve"),
-                           self.track.change_curve)            
+                           self.track.change_plot)            
 
 
-class TrackWindow(QWidget):
-    def __init__(self, track, parent = None):
-        QWidget.__init__(self, parent)
-        fixed_size_policy(self)
-        self.track = track
-        self.layout = QVBoxLayout(self)
-        self.button_panel = TrackButtonPanel(track, self)
-
-    def contextMenuEvent(self, event):
-        PlotsContextMenu(self.track, self).popup(event.globalPos())
-
-    def add_plot_info(self, plot):
-        self.button_panel.add_plot_info(plot)
-        self.updateGeometry()
-    
-    def remove_all_plot_info(self):
-        self.button_panel.remove_all_plot_info()        
-
-    def remove_plot_info(self, plot):
-        self.button_panel.remove_plot_info(plot)
-        self.updateGeometry()
-        
 class DepthSlider(QSlider):
     def __init__(self, parent = None):
         self.tracks_view = parent

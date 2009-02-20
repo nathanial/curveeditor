@@ -1,17 +1,13 @@
-from las.file import LasCurve, transform
-from matplotlib.lines import Line2D
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from PyQt4.QtCore import SIGNAL
+from PyQt4.QtGui import QMenu, QWidget, QApplication, QHBoxLayout, QComboBox, QLabel
 from matplotlib.backends.backend_agg import FigureCanvasAgg
-from matplotlib.figure import Figure
-from PyQt4 import QtGui, QtCore
-from PyQt4.QtCore import SIGNAL, QSize
-from PyQt4.QtGui import QMainWindow, QMenu, QWidget,\
-    QVBoxLayout, QApplication, QMessageBox, QHBoxLayout,\
-    QFileDialog, QSlider, QComboBox, QLayout, QPushButton,\
-    QDialog, QRadioButton, QLabel
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure, SubplotParams
+from matplotlib.lines import Line2D
+
 from gui.gutil import minimum_size_policy, fixed_size_policy
+from las.file import transform
 from util import *
-import thread
 
 class Plot(Line2D):
     def __init__(self, xfield = None, yfield = None, canvas = None, *args, **kwargs):
@@ -197,9 +193,14 @@ class PlotInfo(QWidget):
 
 class PlotCanvas(FigureCanvas):
     def __init__(self, parent = None, width=5, height=4, dpi=100):
-        self.fig = Figure(figsize=(width,height), dpi=dpi)
+        params = SubplotParams(left=.02, right=.98, top=.99, bottom=.01)
+        self.fig = Figure(figsize=(width,height), dpi=dpi,
+                          subplotpars=params)
+                
         self.axes = self.fig.add_subplot(111)
         self.axes.hold(False)
+        self.axes.set_xticks([])
+        self.axes.set_yticks([])
         self.plots = []
         self.increment = 0
         self.lowest_depth = None
@@ -238,6 +239,8 @@ class PlotCanvas(FigureCanvas):
         self.axes.clear()
         fn()
         each(self.plots, self._render_plot)
+        self.axes.set_xticks([])
+        self.axes.set_yticks([])
         self.draw()
 
     def _render_plots(self):
@@ -341,7 +344,7 @@ class PlotContextMenu(QMenu):
         marker_menu = PlotMarkerMenu(self,plot)
         self.addMenu(color_menu)
         self.addMenu(marker_menu)
-        self.addAction('&Remove', lambda: parent.track.remove_curve(plot))
+        self.addAction('&Remove', lambda: parent.track.remove_plot(plot))
 
 class PlotColorMenu(QMenu):
     def __init__(self, parent,plot):
@@ -356,3 +359,4 @@ class PlotMarkerMenu(QMenu):
         self.addAction('&None', lambda: plot.set_marker("None"))
         self.addAction('&Circle', lambda: plot.set_marker("o"))
         self.addAction('&Triangle', lambda: plot.set_marker("^"))
+
