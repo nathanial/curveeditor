@@ -28,12 +28,14 @@ class TrackPanel(QWidget):
     def add_new_track(self):
         track = Track(self.curve_source, self)
         self.add_track(track)
+        self.layout.invalidate()
         self.updateGeometry()
         
     def add_track(self, track):
-        self.layout.addWidget(track,1,Qt.AlignLeft)
+        for t in self.tracks:
+            self.layout.setStretchFactor(t, 0)
         self.tracks.append(track)
-        self.updateGeometry()
+        self.layout.addWidget(track, 1, Qt.AlignLeft)
 
     def add_dummy_track(self):
         self.dummy_track = DummyTrack(self)
@@ -43,7 +45,7 @@ class TrackPanel(QWidget):
         track = self.tracks[-1]
         track.hide()
         self.layout.removeWidget(track)
-        del self.tracks[-1]
+        self.tracks = self.tracks[:-1]
         self.resize_after_remove()
 
     def remove_dummy_track(self):
@@ -61,6 +63,7 @@ class TrackPanel(QWidget):
             track.set_depth(percentage)
 
     def resize_after_remove(self):
+        self.layout.invalidate()
         self.updateGeometry()
         QApplication.processEvents()
         self.adjustSize()
@@ -93,7 +96,7 @@ class Track(QWidget):
         QWidget.__init__(self, parent)
         self.curve_source = curve_source
         self.layout = QVBoxLayout(self)
-        minimum_size_policy(self)
+        fixed_size_policy(self)
         self.plot_canvas = PlotCanvas(self, width=4, height=6)
         self.button_panel = TrackButtonPanel(self, self)
         self.layout.addWidget(self.button_panel)
