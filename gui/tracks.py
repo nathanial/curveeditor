@@ -1,9 +1,10 @@
 from __future__ import with_statement
 from PyQt4 import QtGui, QtCore
+from PyQt4.QtCore import Qt
 from PyQt4.QtGui import QMainWindow, QMenu, QWidget,\
     QVBoxLayout, QApplication, QMessageBox, QHBoxLayout,\
     QFileDialog, QSlider, QComboBox, QLayout, QPushButton,\
-    QDialog, QRadioButton
+    QDialog, QRadioButton, QPalette
 from PyQt4.QtCore import SIGNAL, QSize, QMutex
 from gui.gutil import minimum_size_policy, fixed_size_policy
 from gui.plots import *
@@ -13,7 +14,7 @@ from dummy import *
 class TrackPanel(QWidget):
     def __init__(self,curve_source, main_window, parent = None):
         QWidget.__init__(self,parent)
-        minimum_size_policy(self)
+        fixed_size_policy(self)
         self.main_window = main_window
         self.layout = QHBoxLayout(self)
         self._setup_depth_slider()
@@ -21,15 +22,18 @@ class TrackPanel(QWidget):
         self.dummy_track = None
         self.curve_source = curve_source
         self.changing_depth = False
+        self.updateGeometry()
+
 
     def add_new_track(self):
         track = Track(self.curve_source, self)
         self.add_track(track)
+        self.updateGeometry()
         
     def add_track(self, track):
-        self.layout.addWidget(track)
+        self.layout.addWidget(track,1,Qt.AlignLeft)
         self.tracks.append(track)
-        self.resize_after_remove()
+        self.updateGeometry()
 
     def add_dummy_track(self):
         self.dummy_track = DummyTrack(self)
@@ -68,6 +72,7 @@ class TrackPanel(QWidget):
     def _setup_depth_slider(self):
         self.depth_slider = DepthSlider(self)
         self.layout.addWidget(self.depth_slider)
+        self.layout.setAlignment(self.depth_slider, Qt.AlignLeft)
         QWidget.connect(self.depth_slider, SIGNAL("valueChanged(int)"),
                         self.set_depth)
         QWidget.connect(self.depth_slider, SIGNAL("sliderPressed()"),
@@ -86,10 +91,10 @@ class TrackPanel(QWidget):
 class Track(QWidget):
     def __init__(self, curve_source, parent = None):
         QWidget.__init__(self, parent)
-        fixed_size_policy(self)
         self.curve_source = curve_source
-        self.plot_canvas = PlotCanvas(self, width=4, height=6)
         self.layout = QVBoxLayout(self)
+        minimum_size_policy(self)
+        self.plot_canvas = PlotCanvas(self, width=4, height=6)
         self.button_panel = TrackButtonPanel(self, self)
         self.layout.addWidget(self.button_panel)
         self.layout.addWidget(self.plot_canvas)
@@ -145,6 +150,7 @@ class TrackButtonPanel(QWidget):
         self.track = track
         self.plot_infos = []
         self.layout = QVBoxLayout(self)
+        self.layout.setSizeConstraint(QLayout.SetMinimumSize)
 
     def add_info(self, plot):
         pi = self._build_plot_info(plot)

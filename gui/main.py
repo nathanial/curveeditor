@@ -2,7 +2,7 @@ from __future__ import with_statement
 
 from PyQt4 import QtCore
 from PyQt4.QtCore import SIGNAL, QSize
-from PyQt4.QtGui import QMainWindow, QMenu, QWidget, QHBoxLayout, QFileDialog, QTabWidget, QDialog, QListWidget, QListWidgetItem, QVBoxLayout, QPushButton, QAbstractItemView
+from PyQt4.QtGui import QMainWindow, QMenu, QWidget, QHBoxLayout, QFileDialog, QTabWidget, QDialog, QListWidget, QListWidgetItem, QVBoxLayout, QPushButton, QAbstractItemView, QTabBar, QApplication
 
 from gui.gutil import minimum_size_policy
 from gui.merge import MergePanel
@@ -15,15 +15,13 @@ class ApplicationWindow(QMainWindow):
         self.tracks = []
         QMainWindow.__init__(self)
         minimum_size_policy(self)
-        self.track_views = []
+        self.track_panels = []
         self.merge_views = []
 
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowTitle("Curve Editor")
         self.main_widget = FileTabPanel(self)
         self.file_tab_panel = self.main_widget
-        minimum_size_policy(self.main_widget)
-        self.main_layout = QHBoxLayout(self.main_widget)
 
         self.file_menu = FileMenu(self)
         self.menuBar().addMenu(self.file_menu)
@@ -41,25 +39,24 @@ class ApplicationWindow(QMainWindow):
     def sizeHint(self):
         return QSize(400, 700)
 
-    def track_view_with_focus(self):
+    def track_panel_with_focus(self):
         return self.file_tab_panel.currentWidget()
 
-    def create_new_track_view(self, lasfile):
-        track_view = TrackPanel(lasfile, self, None)
-        for i in range(0, self.tracks_menu.track_count):
-            track_view.add_new_track()
-        self.track_views.append(track_view)
-        self.file_tab_panel.addTab(track_view, lasfile.name())
-        return track_view
+    def create_new_track_panel(self, lasfile):
+        track_panel = TrackPanel(lasfile, self, self.file_tab_panel)
+        track_panel.add_new_track()
+        self.track_panels.append(track_panel)
+        self.file_tab_panel.addTab(track_panel, track_panel.curve_source.name())
+        return track_panel
 
-    def create_new_merge_view(self, track_views):
-        merge_view = MergePanel(track_views, None)
+    def create_new_merge_view(self, track_panels):
+        merge_view = MergePanel([tv.curve_source for tv in track_panels], None)
         self.merge_views.append(merge_view)
         self.file_tab_panel.addTab(merge_view, merge_view.name)
 
+
 class FileTabPanel(QTabWidget):
     def __init__(self, main_window):
-        self.main_window = main_window
         QTabWidget.__init__(self, main_window)
                         
 
@@ -85,18 +82,18 @@ class FileMenu(QMenu):
                 lasfile = LasFile.from_(filename)
             else:
                 raise "%s is not a las file!!" % filename
-            self.app_window.create_new_track_view(lasfile)
+            self.app_window.create_new_track_panel(lasfile)
 
     def save(self):
-        track_view = self.app_window.track_view_with_focus()
+        track_panel = self.app_window.track_panel_with_focus()
         lasfile = track.curve_source
         filename = lasfile.path
         with open(filename, "w") as f:
             f.write(lasfile.to_las())
 
     def save_as(self):
-        track_view = self.app_window.track_view_with_focus()
-        lasfile = track_view.curve_source
+        track_panel = self.app_window.track_panel_with_focus()
+        lasfile = track_panel.curve_source
         dialog = QFileDialog(self, "Save As")
         dialog.setAcceptMode(QFileDialog.AcceptSave)
         if dialog.exec_():
@@ -110,7 +107,6 @@ class FileMenu(QMenu):
 
 class TracksMenu(QMenu):
     def __init__(self, main_window):
-        self.track_count = 1
         self.main_window = main_window
         QMenu.__init__(self, '&Tracks', main_window)
         self.addAction('&Add', self.add_track)
@@ -118,31 +114,30 @@ class TracksMenu(QMenu):
         self.addAction('&Merge', self.merge_tracks)
         
     def add_track(self):
-        self.track_count += 1
-        for track_view in self.main_window.track_views:
-            track_view.add_new_track()
+        track_panel = self.main_window.track_panel_with_focus()
+        track_panel.add_new_track()
+        for tp in self.main_window.track_panels:
+            tp.layout.invalidate()
+            
         
     def remove_track(self):
-        self.track_count -= 1
-        for track_view in self.main_window.track_views:
-            track_view.remove_track()
-        for track_view in self.main_window.track_views:
-            track_view.resize_after_remove()
+        track_panel = self.main_window.track_panel_with_focus()
+        track_panel.remove_track()
 
     def merge_tracks(self):
-        dialog = MergeDialog(self.main_window.track_views)
+        dialog = MergeDialog(self.main_window.track_panels)
         if dialog.exec_():
-            track_views = dialog.selected_track_views()
-            self.main_window.create_new_merge_view(track_views)
+            track_panels = dialog.selected_track_panels()
+            self.main_window.create_new_merge_view(track_panels)
         
 class MergeDialog(QDialog):
-    def __init__(self, track_views, parent = None):
+    def __init__(self, track_panels, parent = None):
         QDialog.__init__(self, parent)
-        self.track_views = track_views
+        self.track_panels = track_panels
         self.layout = QVBoxLayout(self)
         self.list = QListWidget(self)
         self.list.setSelectionMode(QAbstractItemView.MultiSelection)
-        for tv in track_views:
+        for tv in track_panels:
             name = tv.curve_source.name()
             self.list.addItem(QListWidgetItem(name, self.list))
 
@@ -157,10 +152,10 @@ class MergeDialog(QDialog):
         self.updateGeometry()
         self.adjustSize()
 
-    def selected_track_views(self):
+    def selected_track_panels(self):
         selected = self.list.selectedItems()
         names = [s.text() for s in selected]
-        return [tv for tv in self.track_views 
+        return [tv for tv in self.track_panels 
                 if tv.curve_source.name() in names]        
 
         

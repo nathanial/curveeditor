@@ -208,7 +208,7 @@ class PlotCanvas(FigureCanvas):
         self.animation_engaged = False
         FigureCanvas.__init__(self, self.fig)
         self.setParent(parent)
-        fixed_size_policy(self)
+        minimum_size_policy(self)
 
     def swap_plot(self, old, new):
         old.disconnect_draggable()
