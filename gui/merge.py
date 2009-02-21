@@ -2,9 +2,10 @@ from PyQt4 import QtGui, QtCore
 from PyQt4.QtCore import SIGNAL, QSize, QStringList
 from PyQt4.QtGui import QMainWindow, QMenu, QWidget, QHBoxLayout, QFileDialog, \
     QTabWidget, QListView, QDialog, QStringListModel, QListWidget, QListWidgetItem, \
-    QVBoxLayout, QPushButton, QAbstractItemView
+    QVBoxLayout, QPushButton, QAbstractItemView, QLabel
 from gui.gutil import minimum_size_policy, fixed_size_policy
 from gui.plots import *
+from gui.tracks import *
 
 class MergePanel(QWidget):
     def __init__(self, curve_sources, parent = None): 
@@ -20,12 +21,8 @@ class MergePanel(QWidget):
 
     def merge_right(self): pass    
 
-class MergeTrack(QWidget):
+class MergeTrack(Track):
     def __init__(self, curve_source, parent = None):
-        QWidget.__init__(self, parent)
-        fixed_size_policy(self)
-        self.curve_source = curve_source
-        self.plot_canvas = PlotCanvas(self, width=4, height=6)
-        self.layout = QVBoxLayout(self)
-        self.layout.addWidget(self.plot_canvas)
-        self.updateGeometry()
+        Track.__init__(self, curve_source, parent)
+        self.source_label = QLabel(curve_source.name(), self)
+        self.layout.insertWidget(0, self.source_label)

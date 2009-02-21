@@ -163,9 +163,10 @@ class PlotBuilder(object):
         return Plot(xcurve, ycurve)
 
 class PlotInfo(QWidget):
-    def __init__(self, plot, available_curves, parent):
-        QWidget.__init__(self, parent)
+    def __init__(self, plot, available_curves, info_panel):
+        QWidget.__init__(self, info_panel)
         self.plot = plot
+        self.info_panel = info_panel
         minimum_size_policy(self)
 
         self.curve_box = QComboBox(self)
@@ -183,16 +184,30 @@ class PlotInfo(QWidget):
         self.layout.addWidget(self.curve_box)
         self.layout.addWidget(self.xmax_label)
 
+    def my_connect(self):
         QWidget.connect(self.curve_box, 
                         SIGNAL("currentIndexChanged(int)"),
-                        self.change_curve)
+                        self.change_plot)
+        self.info_panel.layout.addWidget(self)
 
-    def change_curve(self, index):
+    def my_disconnect(self):
+        self.hide()
+        QWidget.disconnect(self.curve_box,
+                           SIGNAL("currentIndexChanged(int)"),
+                           self.change_plot)
+        self.info_panel.layout.removeWidget(self)
+
+    def change_plot(self, index):
         name = self.curve_names[index]
-        self.emit(SIGNAL("change_curve"), self.plot, name)
+        self.emit(SIGNAL("change_plot"), name)
+
+    def switch_plot(self, plot):
+        self.plot = plot
+        self.xmax_label.setText(str(plot.xmax()))
+        self.xmin_label.setText(str(plot.xmin()))
 
 class PlotCanvas(FigureCanvas):
-    def __init__(self, parent = None, width=5, height=4, dpi=100):
+    def __init__(self, ymin, ymax, yinc, parent = None, width=5, height=4, dpi=100):
         params = SubplotParams(left=.02, right=.98, top=.99, bottom=.01)
         self.fig = Figure(figsize=(width,height), dpi=dpi,
                           subplotpars=params)
@@ -203,9 +218,10 @@ class PlotCanvas(FigureCanvas):
         self.axes.set_yticks([])
         self.plots = []
         self.increment = 0
-        self.lowest_depth = None
-        self.highest_depth = None
         self.animation_engaged = False
+        self.ymax = ymax
+        self.ymin = ymin
+        self.yinc = yinc
         FigureCanvas.__init__(self, self.fig)
         self.setParent(parent)
         minimum_size_policy(self)
@@ -215,10 +231,6 @@ class PlotCanvas(FigureCanvas):
         self._insert_plot(new, lambda: swap(self.plots, old, new))
 
     def add_plot(self, plot):
-        if self.first_plot():
-            self.lowest_depth = plot.ymin()
-            self.highest_depth = plot.ymax()
-            self._reset_ylim()
         self._insert_plot(plot, lambda: self.plots.append(plot))
 
     def remove_plot(self, plot):
@@ -238,13 +250,14 @@ class PlotCanvas(FigureCanvas):
         plot.canvas = self
         self.axes.clear()
         fn()
-        each(self.plots, self._render_plot)
-        self.axes.set_xticks([])
-        self.axes.set_yticks([])
+        self._render_plots()
+        self._reset_ylim()
         self.draw()
 
     def _render_plots(self):
         each(self.plots, self._render_plot)
+        self.axes.set_xticks([])
+        self.axes.set_yticks([])
 
     def _render_plot(self, plot):
         xscale = PlotCanvas.xscale(plot, self.plots)
@@ -281,21 +294,16 @@ class PlotCanvas(FigureCanvas):
         self.draw()
 
     def _reset_ylim(self):
-        self.axes.set_ylim(self.lowest_depth + self._percentage_increment(),
-                           self.lowest_depth + 100 + self._percentage_increment())
+        self.axes.set_ylim(self.ymin + self._percentage_increment(),
+                           self.ymin + self.yinc + self._percentage_increment())
         if self.animation_engaged:
             self.update_animation()
         else:
             self.draw()
 
     def _percentage_increment(self):
-        return ((self.increment + 1) / 100.0) * self.depth_range()
-
-    def depth_range(self):
-        return self.highest_depth - self.lowest_depth
-
-    def first_plot(self):
-        return len(self.plots) == 0
+        yrange = self.ymax - self.ymin
+        return ((self.increment + 1) / 100.0) * yrange
 
     def draw(self):
         self.replot = True
@@ -322,41 +330,56 @@ class PlotCanvas(FigureCanvas):
     def xoffset(plot, plots):
         return (PlotCanvas.xmax(plots) - plot.xmax()) / 2.0        
 
-class PlotsContextMenu(QMenu):
-    def __init__(self, track, parent):
-        QMenu.__init__(self, parent)
-        self.track = track
-        plots = track.plots()
 
-        self.addAction('&Add Curve', self.track.add_new_plot)
-        for plot in plots:
-            self.addMenu(PlotContextMenu(self, plot))
+class PlotAndInfo(object):
+    def __init__(self, xcurve_name, curve_source, plot_canvas, info_panel):
+        self.xcurve_name = xcurve_name
+        self.curve_source = curve_source
+        self.plot_canvas = plot_canvas
+        self.info_panel = info_panel
+        self.plot = Plot.of(xcurve_name, 
+                            curve_source.index_name()).from_(curve_source)
 
-        QApplication.processEvents()
-        self.updateGeometry()
-        QApplication.processEvents()
-        self.adjustSize()
-                
-class PlotContextMenu(QMenu):
-    def __init__(self, parent, plot):
-        QMenu.__init__(self, plot.name(), parent)
-        color_menu = PlotColorMenu(self,plot)
-        marker_menu = PlotMarkerMenu(self,plot)
-        self.addMenu(color_menu)
-        self.addMenu(marker_menu)
-        self.addAction('&Remove', lambda: parent.track.remove_plot(plot))
+    def my_connect(self):
+        self.plot_info = PlotInfo(self.plot,
+                                  self.curve_source.available_curves(),
+                                  self.info_panel)
+        self.plot_info.my_connect()
+        self.plot_canvas.add_plot(self.plot)
+        QWidget.connect(self.plot_info,
+                        SIGNAL("change_plot"),
+                        self.change_plot)
+            
+    def my_disconnect(self):
+        self.plot_info.my_disconnect()
+        self.plot_canvas.remove_plot(self.plot)
+        QWidget.disconnect(self.plot_info,
+                           SIGNAL("change_plot"),
+                           self.change_plot)
 
-class PlotColorMenu(QMenu):
-    def __init__(self, parent,plot):
-        QMenu.__init__(self,"Color", parent)
-        self.addAction('&Red', lambda: plot.set_color("r"))
-        self.addAction('&Blue', lambda: plot.set_color("b"))
-        self.addAction('&Green', lambda: plot.set_color("g"))
+    def reindex(self):
+        new_plot = self._new_plot(self.plot.original_xfield.name())
+        self.plot_canvas.swap_plot(self.plot, new_plot)
+        self.plot_info.switch_plot(new_plot)
+        self.plot = new_plot
 
-class PlotMarkerMenu(QMenu):
-    def __init__(self, parent, plot):
-        QMenu.__init__(self,"Marker", parent)
-        self.addAction('&None', lambda: plot.set_marker("None"))
-        self.addAction('&Circle', lambda: plot.set_marker("o"))
-        self.addAction('&Triangle', lambda: plot.set_marker("^"))
+    def change_plot(self, name):
+        self.xcurve_name = name
+        new_plot = self._new_plot(name)
+        self.plot_canvas.swap_plot(self.plot, new_plot)
+        self.plot_info.switch_plot(new_plot)
+        self.plot = new_plot
 
+    def _new_plot(self, name):
+        iname = self.curve_source.index_name()
+        nplot = Plot.of(name,iname).from_(self.curve_source)
+        nplot.set_color(self.plot.color)
+        nplot.set_marker(self.plot.marker)
+        return nplot
+        
+        
+        
+        
+        
+        
+        

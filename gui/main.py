@@ -2,7 +2,11 @@ from __future__ import with_statement
 
 from PyQt4 import QtCore
 from PyQt4.QtCore import SIGNAL, QSize
-from PyQt4.QtGui import QMainWindow, QMenu, QWidget, QHBoxLayout, QFileDialog, QTabWidget, QDialog, QListWidget, QListWidgetItem, QVBoxLayout, QPushButton, QAbstractItemView, QTabBar, QApplication
+from PyQt4.QtGui import QMainWindow, QMenu, \
+    QWidget, QHBoxLayout, QFileDialog, QTabWidget, \
+    QDialog, QListWidget, QListWidgetItem, QVBoxLayout,\
+    QPushButton, QAbstractItemView, QTabBar, QApplication, \
+    QProgressBar, QProgressDialog
 
 from gui.gutil import minimum_size_policy
 from gui.merge import MergePanel
@@ -72,17 +76,25 @@ class FileMenu(QMenu):
         self.addAction('&Quit', self.quit,
                        QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
                        
-
+    
     def open(self):
         dialog = QFileDialog(self, "Open LAS")
-        dialog.setFileMode(QFileDialog.AnyFile)
+        dialog.setFileMode(QFileDialog.ExistingFiles)
         if dialog.exec_():
-            filename, = dialog.selectedFiles()
-            if LasFile.is_lasfile(filename):
-                lasfile = LasFile.from_(filename)
-            else:
-                raise "%s is not a las file!!" % filename
-            self.app_window.create_new_track_panel(lasfile)
+            filenames = dialog.selectedFiles()
+            show_progress = len(filenames) > 1            
+            if show_progress:
+                progress = QProgressDialog(self.app_window)
+                progress.setMinimum(1)
+                progress.setMaximum(len(filenames))
+            for filename in filenames:
+                if LasFile.is_lasfile(filename):
+                    lasfile = LasFile.from_(filename)
+                    if show_progress:
+                        progress.setValue(progress.value() + 1)
+                else:
+                    raise "%s is not a las file!!" % filename
+                self.app_window.create_new_track_panel(lasfile)
 
     def save(self):
         track_panel = self.app_window.track_panel_with_focus()
@@ -112,6 +124,7 @@ class TracksMenu(QMenu):
         self.addAction('&Add', self.add_track)
         self.addAction('&Remove', self.remove_track)
         self.addAction('&Merge', self.merge_tracks)
+        self.addAction('&Set Index', self.set_index)
         
     def add_track(self):
         track_panel = self.main_window.track_panel_with_focus()
@@ -119,7 +132,6 @@ class TracksMenu(QMenu):
         for tp in self.main_window.track_panels:
             tp.layout.invalidate()
             
-        
     def remove_track(self):
         track_panel = self.main_window.track_panel_with_focus()
         track_panel.remove_track()
@@ -129,6 +141,38 @@ class TracksMenu(QMenu):
         if dialog.exec_():
             track_panels = dialog.selected_track_panels()
             self.main_window.create_new_merge_view(track_panels)
+
+    def set_index(self):
+        track_panel = self.main_window.track_panel_with_focus()
+        dialog = IndexDialog(track_panel)
+        if dialog.exec_():
+            new_index = dialog.index()
+            track_panel.set_index(new_index)
+
+class IndexDialog(QDialog):
+    def __init__(self, track_panel, parent = None):
+        QDialog.__init__(self, parent)
+        self.track_panel = track_panel
+        self.layout = QVBoxLayout(self)
+        self.list = QListWidget(self)
+        curve_names = self.track_panel.curve_source.available_curves()
+        for curve_name in curve_names:
+            self.list.addItem(QListWidgetItem(curve_name, self.list))
+
+        self.ok_button = QPushButton("ok", self)
+        minimum_size_policy(self.ok_button)
+        QWidget.connect(self.ok_button, SIGNAL("clicked()"),
+                        self.accept)
+        self.list.updateGeometry()
+        self.layout.addWidget(self.list)
+        self.layout.addWidget(self.ok_button)
+        self.updateGeometry()
+        self.adjustSize()
+
+    def index(self):
+        selected, = self.list.selectedItems()
+        return selected.text()
+            
         
 class MergeDialog(QDialog):
     def __init__(self, track_panels, parent = None):
