@@ -104,16 +104,21 @@ class TrackPanel(AbstractTrackPanel):
 
 
 class Track(QWidget):
-    def __init__(self, curve_source, parent = None):
+    def __init__(self, curve_source, 
+                 parent = None,
+                 starting_plot = True,
+                 ymin = None,
+                 ymax = None,
+                 yinc = None):
         QWidget.__init__(self, parent)
         self.curve_source = curve_source
         self.layout = QVBoxLayout(self)
         fixed_size_policy(self)
         self.pais = []
         self.index = self.curve_source.index()
-        self.plot_canvas = PlotCanvas(ymin=self.index.min(), 
-                                      ymax=self.index.max(),
-                                      yinc=100, 
+        self.plot_canvas = PlotCanvas(ymin= ymin or self.index.min(), 
+                                      ymax= ymax or self.index.max(),
+                                      yinc= yinc or 100, 
                                       parent = self,
                                       width=4, height=6)
         self.info_panel = TrackInfoPanel(self, self)

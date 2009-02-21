@@ -7,14 +7,16 @@ from gui.gutil import minimum_size_policy, fixed_size_policy
 from gui.plots import *
 from gui.tracks import *
 
-class MergePanel(QWidget):
+class MergePanel(AbstractTrackPanel):
     def __init__(self, curve_sources, parent = None): 
-        QWidget.__init__(self, parent)
+        AbstractTrackPanel.__init__(self, [], parent)
         self.curve_sources = curve_sources
         self.name = "merge " + " ".join([cs.name() for cs in self.curve_sources])
-        self.merge_tracks = [MergeTrack(cs,self) for cs in self.curve_sources]
-        self.layout = QHBoxLayout(self)
-        for mt in self.merge_tracks:
+        ymin = min([cs.index().min() for cs in self.curve_sources])
+        ymax = max([cs.index().max() for cs in self.curve_sources])
+        self.tracks = [MergeTrack(cs,ymin=ymin,ymax=ymax,parent=self)
+                       for cs in self.curve_sources]
+        for mt in self.tracks:
             self.layout.addWidget(mt)
         
     def merge_left(self): pass
@@ -22,7 +24,8 @@ class MergePanel(QWidget):
     def merge_right(self): pass    
 
 class MergeTrack(Track):
-    def __init__(self, curve_source, parent = None):
-        Track.__init__(self, curve_source, parent)
+    def __init__(self, curve_source, ymin, ymax, parent):
+        Track.__init__(self, curve_source, parent,
+                       ymin = ymin, ymax = ymax)
         self.source_label = QLabel(curve_source.name(), self)
         self.layout.insertWidget(0, self.source_label)
