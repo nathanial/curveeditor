@@ -102,7 +102,7 @@ class FileMenu(QMenu):
 
     def save(self):
         track_panel = self.app_window.track_panel_with_focus()
-        lasfile = track.curve_source
+        lasfile = track_panel.curve_source
         filename = lasfile.path
         with open(filename, "w") as f:
             f.write(lasfile.to_las())
