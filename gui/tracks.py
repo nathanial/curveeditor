@@ -26,6 +26,7 @@ class TrackPanel(QWidget):
 
     def add_new_track(self):
         track = Track(self.curve_source, self)
+        track.set_depth(self.depth_slider.value())
         self.add_track(track)
         self.layout.invalidate()
         self.updateGeometry()
@@ -108,8 +109,8 @@ class Track(QWidget):
                                       yinc=100, 
                                       parent = self,
                                       width=4, height=6)
-        self.button_panel = TrackButtonPanel(self, self)
-        self.layout.addWidget(self.button_panel)
+        self.info_panel = TrackInfoPanel(self, self)
+        self.layout.addWidget(self.info_panel)
         self.layout.addWidget(self.plot_canvas)
         self.add_new_plot()
         self.updateGeometry()
@@ -127,7 +128,7 @@ class Track(QWidget):
         pai = PlotAndInfo(self.curve_source.index_name(),
                           self.curve_source,
                           self.plot_canvas,
-                          self.button_panel)
+                          self.info_panel)
         pai.my_connect()
         self.pais.append(pai)
         self.updateGeometry()
@@ -151,7 +152,7 @@ class Track(QWidget):
     def contextMenuEvent(self, event):
         TrackContextMenu(self, self).popup(event.globalPos())
 
-class TrackButtonPanel(QWidget):
+class TrackInfoPanel(QWidget):
     def __init__(self, track, parent):
         QWidget.__init__(self, parent)
         minimum_size_policy(self)

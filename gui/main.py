@@ -85,8 +85,9 @@ class FileMenu(QMenu):
             show_progress = len(filenames) > 1            
             if show_progress:
                 progress = QProgressDialog(self.app_window)
-                progress.setMinimum(1)
-                progress.setMaximum(len(filenames))
+                progress.forceShow()
+                progress.setMinimum(0)
+                progress.setMaximum(len(filenames) - 1)
             for filename in filenames:
                 if LasFile.is_lasfile(filename):
                     lasfile = LasFile.from_(filename)
@@ -95,6 +96,9 @@ class FileMenu(QMenu):
                 else:
                     raise "%s is not a las file!!" % filename
                 self.app_window.create_new_track_panel(lasfile)
+            if show_progress:
+                progress.hide()
+                
 
     def save(self):
         track_panel = self.app_window.track_panel_with_focus()
