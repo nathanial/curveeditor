@@ -126,6 +126,11 @@ class Track(QWidget):
         self.layout.addWidget(self.plot_canvas)
         self.add_new_plot()
         self.updateGeometry()
+
+    def my_disconnect(self):
+        for pai in self.pais:
+            pai.my_disconnect()
+        self.hide()
         
     def available_curves(self):
         return self.curve_source.available_curves()

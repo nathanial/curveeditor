@@ -64,3 +64,10 @@ def float_eq(a,b):
 def swap(ls, old, new):
     index = ls.index(old)
     ls[index] = new        
+
+def reduce_left(ls, fn):
+    length = len(ls)
+    last = fn(ls[0], ls[1])
+    for i in range(2, length):
+        last = fn(last, ls[i])
+    return last        
