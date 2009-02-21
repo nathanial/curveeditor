@@ -11,13 +11,42 @@ from gui.plots import *
 from las.file import LasFile
 from dummy import *
 
-class TrackPanel(QWidget):
-    def __init__(self,curve_source, main_window, parent = None):
+class AbstractTrackPanel(QWidget):
+    def __init__(self, tracks, parent):
         QWidget.__init__(self,parent)
         fixed_size_policy(self)
-        self.main_window = main_window
+        self.tracks = tracks
         self.layout = QHBoxLayout(self)
         self._setup_depth_slider()
+
+    def animate_tracks(self):
+        for track in self.tracks:
+            track.animation_on()
+
+    def deanimate_tracks(self):
+        for track in self.tracks:
+            track.animation_off()
+
+    def set_depth(self, percentage):
+        for track in self.tracks: 
+            track.set_depth(percentage)
+        
+    def _setup_depth_slider(self):
+        self.depth_slider = DepthSlider(self)
+        self.layout.addWidget(self.depth_slider)
+        self.layout.setAlignment(self.depth_slider, Qt.AlignLeft)
+        QWidget.connect(self.depth_slider, SIGNAL("valueChanged(int)"),
+                        self.set_depth)
+        QWidget.connect(self.depth_slider, SIGNAL("sliderPressed()"),
+                        self.animate_tracks)
+        QWidget.connect(self.depth_slider, SIGNAL("sliderReleased()"),
+                        self.deanimate_tracks)
+        
+
+class TrackPanel(AbstractTrackPanel):
+    def __init__(self, curve_source, main_window, parent):
+        AbstractTrackPanel.__init__(self, [], parent)
+        self.main_window = main_window
         self.tracks = []
         self.dummy_track = None
         self.curve_source = curve_source
@@ -58,10 +87,6 @@ class TrackPanel(QWidget):
         self.remove_dummy_track()
         self.add_new_track()
 
-    def set_depth(self, percentage):
-        for track in self.tracks: 
-            track.set_depth(percentage)
-
     def set_index(self, curve_name):
         self.curve_source.set_index(curve_name)
         for track in self.tracks:
@@ -77,24 +102,6 @@ class TrackPanel(QWidget):
         QApplication.processEvents()
         self.main_window.adjustSize()
 
-    def _setup_depth_slider(self):
-        self.depth_slider = DepthSlider(self)
-        self.layout.addWidget(self.depth_slider)
-        self.layout.setAlignment(self.depth_slider, Qt.AlignLeft)
-        QWidget.connect(self.depth_slider, SIGNAL("valueChanged(int)"),
-                        self.set_depth)
-        QWidget.connect(self.depth_slider, SIGNAL("sliderPressed()"),
-                        self.animate_tracks)
-        QWidget.connect(self.depth_slider, SIGNAL("sliderReleased()"),
-                        self.deanimate_tracks)
-
-    def animate_tracks(self):
-        for track in self.tracks:
-            track.animation_on()
-    
-    def deanimate_tracks(self):
-        for track in self.tracks:
-            track.animation_off()
 
 class Track(QWidget):
     def __init__(self, curve_source, parent = None):
