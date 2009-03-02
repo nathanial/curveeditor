@@ -324,7 +324,12 @@ class PlotCanvas(FigureCanvas):
 
     @staticmethod
     def xscale(plot, plots):
-        return PlotCanvas.xrange(plots) / plot.xrange()
+        xrange = plot.xrange()
+        print "xrange = %s " % xrange
+        if xrange:
+            return PlotCanvas.xrange(plots) / xrange
+        else:
+            return 0
     
     @staticmethod
     def xoffset(plot, plots):
