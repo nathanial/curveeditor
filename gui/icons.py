@@ -1,6 +1,7 @@
 from las.file import *
 from gui.plots import *
 from gui.gutil import *
+from gui.tracks import *
 from PyQt4.QtCore import QRectF, Qt, QSize
 from PyQt4.QtGui import QApplication, QMainWindow, QLabel,\
     QPixmap, QWidget, QPainter, QVBoxLayout, QGridLayout, QListView, \
@@ -49,7 +50,8 @@ class CurvePanel(QListView):
         if trigger == QAbstractItemView.DoubleClicked:
             item = self.model.item(index.row())
             curve = item.curve
-            print curve.name()
+            ce_panel = CurveEditingPanel(curve, self.curve_source.index())
+            ce_panel.show()
             return True
         else:
             return False

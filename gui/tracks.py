@@ -104,13 +104,60 @@ class TrackPanel(AbstractTrackPanel):
         self.main_window.adjustSize()
 
 
+
+
+class CurveEditingPanel(AbstractTrackPanel):
+    def __init__(self, curve, index, parent = None):
+        AbstractTrackPanel.__init__(self, [], parent)
+        self.curve = curve
+        self.index = index
+        self.changing_depth = False
+        self._setup_depth_slider(index.min(), index.max())
+
+        track = SinglePlotTrack(Plot(self.curve, self.index), self)
+        self.tracks.append(track)
+        self.layout.addWidget(track, 1, Qt.AlignLeft)
+        self.updateGeometry()
+        
+
+class SinglePlotTrack(QWidget):
+    def __init__(self, plot, parent = None):
+        QWidget.__init__(self, parent)
+        self.plot = plot
+        self.layout = QVBoxLayout(self)
+        fixed_size_policy(self)
+        self.plot_canvas = PlotCanvas(ymin = self.plot.ymin(),
+                                      ymax = self.plot.ymax(),
+                                      yinc = 100, 
+                                      parent = self,
+                                      width=4, height=6)
+        self.plot_canvas.add_plot(self.plot)
+        self.layout.addWidget(self.plot_canvas)
+        self.updateGeometry()
+
+    def animation_on(self):
+        self.plot_canvas.animation_on()
+    
+    def animation_off(self):
+        self.plot_canvas.animation_off()
+
+    def set_depth(self, increment):
+        self.plot_canvas.set_increment(increment)
+
+    def my_disconnect(self):
+        self.hide()
+
+    def plots(self):
+        return [self.plot]
+
+    def contextMenuEvent(self, event):
+        SinglePlotTrackContextMenu(self, self).popup(event.globalPos())
+    
+
 class Track(QWidget):
-    def __init__(self, curve_source, 
-                 parent = None,
-                 starting_plot = True,
-                 ymin = None,
-                 ymax = None,
-                 yinc = None):
+    def __init__(self, curve_source, parent = None,
+                 starting_plot = True, ymin = None,
+                 ymax = None, yinc = None):
         QWidget.__init__(self, parent)
         self.curve_source = curve_source
         self.layout = QVBoxLayout(self)
@@ -168,7 +215,7 @@ class Track(QWidget):
         self.plot_canvas.animation_off()
 
     def contextMenuEvent(self, event):
-        TrackContextMenu(self, self).popup(event.globalPos())
+        MultiPlotTrackContextMenu(self, self).popup(event.globalPos())
 
 class TrackInfoPanel(QWidget):
     def __init__(self, track, parent):
@@ -199,7 +246,7 @@ class DepthSlider(QWidget):
         layout.addWidget(tick_box)
         layout.addWidget(self.slider)
 
-class TrackContextMenu(QMenu):
+class MultiPlotTrackContextMenu(QMenu):
     def __init__(self, track, parent):
         QMenu.__init__(self, parent)
         self.track = track
@@ -213,7 +260,19 @@ class TrackContextMenu(QMenu):
         self.updateGeometry()
         QApplication.processEvents()
         self.adjustSize()
-                
+
+class SinglePlotTrackContextMenu(QMenu):
+    def __init__(self, track, parent):
+        QMenu.__init__(self, parent)
+        self.track = track
+        plot = self.track.plot
+        self.addMenu(CurveColorMenu(self, plot))
+        self.addMenu(CurveMarkerMenu(self, plot))
+        QApplication.processEvents()
+        self.updateGeometry()
+        QApplication.processEvents()
+        self.adjustSize()
+
 class CurveContextMenu(QMenu):
     def __init__(self, parent, plot):
         QMenu.__init__(self, plot.name(), parent)

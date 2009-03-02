@@ -48,16 +48,42 @@ class ApplicationWindow(QMainWindow):
         return self.file_tab_panel.currentWidget()
 
     def create_new_curve_panel(self, curve_source):
+        import new
         curve_panel = CurvePanel(curve_source)
         self.file_tab_panel.addTab(curve_panel, curve_source.name())
+        ftab_panel = self.file_tab_panel
+        def f(self, event):
+            epos = event.pos()
+            tb = ftab_panel.tabBar()
+            for i in range(0,tb.count()):
+                rect = tb.tabRect(i)
+                if rect.contains(epos):
+                    print rect
+                    ftab_panel.setCurrentIndex(i)
+                    break
+            return CurvePanel.mouseMoveEvent(self, event)
+        def g(self, event):
+            epos = event.pos()
+            tb = ftab_panel.tabBar()
+            for i in range(0,tb.count()):
+                rect = tb.tabRect(i)
+                if rect.contains(epos):
+                    print rect
+                    ftab_panel.setCurrentIndex(i)
+                    break
+            return CurvePanel.dragMoveEvent(self, event)
+        curve_panel.mouseMoveEvent = new.instancemethod(f,curve_panel,CurvePanel)
+        curve_panel.dragMoveEvent = new.instancemethod(g,curve_panel,CurvePanel)
+
         QApplication.processEvents()
         curve_panel.add_curves_from_source()
         return curve_panel
 
 class FileTabPanel(QTabWidget):
     def __init__(self, main_window):
-        QTabWidget.__init__(self, main_window)                        
+        QTabWidget.__init__(self, main_window)
 
+        
 class FileMenu(QMenu):
     def __init__(self, parent):
         self.app_window = parent
