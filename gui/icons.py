@@ -23,7 +23,7 @@ class PlotItem(QStandardItem):
                                   ymax=plot.ymax(),
                                   yinc=(plot.ymax() - plot.ymin()))
         plot_canvas.add_plot(plot)
-        filename = plot.name() + ".png"
+        filename = "tmp/" + plot.name() + ".png"
         plot_canvas.fig.savefig(filename)
         plot_canvas.remove_plot(plot)
         return QIcon(QPixmap(filename))
@@ -35,11 +35,15 @@ class CurvePanel(QListView):
         self.setViewMode(QListView.IconMode)
         self.setIconSize(QSize(64,64))
         self.model = QStandardItemModel()
-        for curve in curve_source._curves:
-            self.add_curve(curve)
         self.setModel(self.model)
         self.setWrapping(True)
         self.show()
+
+    def add_curves_from_source(self):
+        for curve in self.curve_source._curves:
+            self.add_curve(curve)
+            self.doItemsLayout()
+            QApplication.processEvents()
 
     def edit(self, index, trigger, event):
         if trigger == QAbstractItemView.DoubleClicked:

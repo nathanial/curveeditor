@@ -9,6 +9,7 @@ from PyQt4.QtGui import QMainWindow, QMenu, \
     QProgressBar, QProgressDialog
 
 from gui.gutil import minimum_size_policy
+from gui.icons import CurvePanel
 from gui.merge import MergePanel
 from gui.tracks import TrackPanel
 from las.file import LasFile
@@ -30,8 +31,8 @@ class ApplicationWindow(QMainWindow):
         self.file_menu = FileMenu(self)
         self.menuBar().addMenu(self.file_menu)
         
-        self.tracks_menu = TracksMenu(self)
-        self.menuBar().addMenu(self.tracks_menu)
+#        self.tracks_menu = TracksMenu(self)
+#        self.menuBar().addMenu(self.tracks_menu)
 
         self.main_widget.setFocus()
         self.setCentralWidget(self.main_widget)
@@ -43,26 +44,19 @@ class ApplicationWindow(QMainWindow):
     def sizeHint(self):
         return QSize(400, 700)
 
-    def track_panel_with_focus(self):
+    def curve_panel_with_focus(self):
         return self.file_tab_panel.currentWidget()
 
-    def create_new_track_panel(self, lasfile):
-        track_panel = TrackPanel(lasfile, self, self.file_tab_panel)
-        track_panel.add_new_track()
-        self.track_panels.append(track_panel)
-        self.file_tab_panel.addTab(track_panel, track_panel.curve_source.name())
-        return track_panel
-
-    def create_new_merge_view(self, track_panels):
-        merge_view = MergePanel([tv.curve_source for tv in track_panels], None)
-        self.merge_views.append(merge_view)
-        self.file_tab_panel.addTab(merge_view, merge_view.name)
-
+    def create_new_curve_panel(self, curve_source):
+        curve_panel = CurvePanel(curve_source)
+        self.file_tab_panel.addTab(curve_panel, curve_source.name())
+        QApplication.processEvents()
+        curve_panel.add_curves_from_source()
+        return curve_panel
 
 class FileTabPanel(QTabWidget):
     def __init__(self, main_window):
-        QTabWidget.__init__(self, main_window)
-                        
+        QTabWidget.__init__(self, main_window)                        
 
 class FileMenu(QMenu):
     def __init__(self, parent):
@@ -95,21 +89,21 @@ class FileMenu(QMenu):
                         progress.setValue(progress.value() + 1)
                 else:
                     raise "%s is not a las file!!" % filename
-                self.app_window.create_new_track_panel(lasfile)
+                self.app_window.create_new_curve_panel(lasfile)
             if show_progress:
                 progress.hide()
                 
 
     def save(self):
-        track_panel = self.app_window.track_panel_with_focus()
-        lasfile = track_panel.curve_source
+        curve_panel = self.app_window.curve_panel_with_focus()
+        lasfile = curve_panel.curve_source
         filename = lasfile.path
         with open(filename, "w") as f:
             f.write(lasfile.to_las())
 
     def save_as(self):
-        track_panel = self.app_window.track_panel_with_focus()
-        lasfile = track_panel.curve_source
+        curve_panel = self.app_window.curve_panel_with_focus()
+        lasfile = curve_panel.curve_source
         dialog = QFileDialog(self, "Save As")
         dialog.setAcceptMode(QFileDialog.AcceptSave)
         if dialog.exec_():
