@@ -14,6 +14,36 @@ from gui.merge import MergePanel
 from gui.tracks import TrackPanel
 from las.file import LasFile
 
+class EnhancedCurvePanel(CurvePanel):
+    def __init__(self, curve_source, file_tab_panel):
+        CurvePanel.__init__(self, curve_source)
+        self.file_tab_panel = file_tab_panel
+
+    def mouseMoveEvent(self, event):
+        epos = event.pos()
+        for i in range(0, self._tab_count()):
+            if self._set_if_in_tab(i, epos):
+                break
+        return CurvePanel.mouseMoveEvent(self, event)
+
+    def dragMoveEvent(self, event):
+        epos = event.pos()
+        for i in range(0, self._tab_count()):
+            if self._set_if_in_tab(i, epos):
+                break
+        return CurvePanel.dragMoveEvent(self, event)
+
+    def _set_if_in_tab(self, index, point):
+        tb = self.file_tab_panel.tabBar()
+        rect = tb.tabRect(index)
+        if rect.contains(point):
+            self.file_tab_panel.setCurrentIndex(index)
+            return True
+        return False
+
+    def _tab_count(self):
+        return self.file_tab_panel.tabBar().count()
+
 
 class ApplicationWindow(QMainWindow):
     def __init__(self):
@@ -22,6 +52,8 @@ class ApplicationWindow(QMainWindow):
         minimum_size_policy(self)
         self.track_panels = []
         self.merge_views = []
+        self.setMinimumWidth(400)
+        self.setMinimumHeight(700)
 
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowTitle("Curve Editor")
@@ -41,40 +73,12 @@ class ApplicationWindow(QMainWindow):
     def closeEvent(self, ce):
         self.close()
 
-    def sizeHint(self):
-        return QSize(400, 700)
-
     def curve_panel_with_focus(self):
         return self.file_tab_panel.currentWidget()
 
     def create_new_curve_panel(self, curve_source):
-        import new
-        curve_panel = CurvePanel(curve_source)
+        curve_panel = EnhancedCurvePanel(curve_source, self.file_tab_panel)
         self.file_tab_panel.addTab(curve_panel, curve_source.name())
-        ftab_panel = self.file_tab_panel
-        def f(self, event):
-            epos = event.pos()
-            tb = ftab_panel.tabBar()
-            for i in range(0,tb.count()):
-                rect = tb.tabRect(i)
-                if rect.contains(epos):
-                    print rect
-                    ftab_panel.setCurrentIndex(i)
-                    break
-            return CurvePanel.mouseMoveEvent(self, event)
-        def g(self, event):
-            epos = event.pos()
-            tb = ftab_panel.tabBar()
-            for i in range(0,tb.count()):
-                rect = tb.tabRect(i)
-                if rect.contains(epos):
-                    print rect
-                    ftab_panel.setCurrentIndex(i)
-                    break
-            return CurvePanel.dragMoveEvent(self, event)
-        curve_panel.mouseMoveEvent = new.instancemethod(f,curve_panel,CurvePanel)
-        curve_panel.dragMoveEvent = new.instancemethod(g,curve_panel,CurvePanel)
-
         QApplication.processEvents()
         curve_panel.add_curves_from_source()
         return curve_panel
