@@ -79,6 +79,7 @@ class ApplicationWindow(QMainWindow):
     def create_new_curve_panel(self, curve_source):
         curve_panel = EnhancedCurvePanel(curve_source, self.file_tab_panel)
         self.file_tab_panel.addTab(curve_panel, curve_source.name())
+        self.file_tab_panel.setCurrentIndex(self.file_tab_panel.tabBar().count() - 1)
         QApplication.processEvents()
         curve_panel.add_curves_from_source()
         return curve_panel

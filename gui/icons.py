@@ -47,6 +47,17 @@ class PlotItemModel(QStandardItemModel):
         self.appendRow(item)
         return True
 
+class CurveEditingDialog(QDialog):
+    def __init__(self, plot, parent = None):
+        QDialog.__init__(self, parent)
+        self.plot = plot
+        self.layout = QHBoxLayout(self)
+        self.editing_panel = CurveEditingPanel(self.plot.original_xfield,
+                                               self.plot.original_yfield,
+                                               self)
+        self.layout.addWidget(self.editing_panel)
+                                               
+
 
 class CurvePanel(QListView):
     def __init__(self, curve_source):
@@ -71,8 +82,8 @@ class CurvePanel(QListView):
             item = self.model.item(index.row())
             print item
             plot = item.plot
-            ce_panel = CurveEditingPanel(plot.original_xfield, plot.original_yfield)
-            ce_panel.show()
+            dialog = CurveEditingDialog(plot, self)
+            dialog.show()
             return True
         else:
             return False
