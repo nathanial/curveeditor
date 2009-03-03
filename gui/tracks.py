@@ -118,14 +118,15 @@ class CurveEditingPanel(AbstractTrackPanel):
         self.tracks.append(track)
         self.layout.addWidget(track, 1, Qt.AlignLeft)
         self.updateGeometry()
-        
 
 class SinglePlotTrack(QWidget):
     def __init__(self, plot, parent = None):
         QWidget.__init__(self, parent)
         self.plot = plot
         self.layout = QVBoxLayout(self)
-        fixed_size_policy(self)
+        self.setMinimumWidth(500)
+        self.setMinimumHeight(500)
+        self.resize(500, 700)
         self.plot_canvas = PlotCanvas(ymin = self.plot.ymin(),
                                       ymax = self.plot.ymax(),
                                       yinc = 100, 

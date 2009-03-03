@@ -5,7 +5,8 @@ from gui.tracks import *
 from PyQt4.QtCore import QRectF, Qt, QSize, QMimeData
 from PyQt4.QtGui import QApplication, QMainWindow, QLabel,\
     QPixmap, QWidget, QPainter, QVBoxLayout, QGridLayout, QListView, \
-    QStandardItem, QStandardItemModel, QIcon, QAbstractItemView
+    QStandardItem, QStandardItemModel, QIcon, QAbstractItemView, \
+    QMenu, QMenuBar, QSizePolicy
 
 ICON_WIDTH=64
 ICON_HEIGHT=64
@@ -47,17 +48,27 @@ class PlotItemModel(QStandardItemModel):
         self.appendRow(item)
         return True
 
-class CurveEditingDialog(QDialog):
+class CurveEditingWindow(QMainWindow):
     def __init__(self, plot, parent = None):
-        QDialog.__init__(self, parent)
+        print "first"
+        QMainWindow.__init__(self, parent)
         self.plot = plot
-        self.layout = QHBoxLayout(self)
+        self.setWindowTitle(self.plot.name())
+        self.layout = QVBoxLayout(self)
+        self._setup_menu()
+        QApplication.processEvents()
+        print "second"
         self.editing_panel = CurveEditingPanel(self.plot.original_xfield,
                                                self.plot.original_yfield,
                                                self)
-        self.layout.addWidget(self.editing_panel)
-                                               
+        self.setCentralWidget(self.editing_panel)
+        self.updateGeometry()
+        print "third"
 
+
+    def _setup_menu(self):
+        self.menuBar().addAction("&Foo")
+        
 
 class CurvePanel(QListView):
     def __init__(self, curve_source):
@@ -80,9 +91,8 @@ class CurvePanel(QListView):
     def edit(self, index, trigger, event):
         if trigger == QAbstractItemView.DoubleClicked:
             item = self.model.item(index.row())
-            print item
             plot = item.plot
-            dialog = CurveEditingDialog(plot, self)
+            dialog = CurveEditingWindow(plot, self)
             dialog.show()
             return True
         else:

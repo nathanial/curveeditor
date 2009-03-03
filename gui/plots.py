@@ -306,8 +306,12 @@ class PlotCanvas(FigureCanvas):
         return ((self.increment + 1) / 100.0) * yrange
 
     def draw(self):
+        parent = self.parent()
+        if parent:
+            print "parent = %s " % parent
+            print "parent-size = %s " % parent.size()
         self.replot = True
-        FigureCanvasAgg.draw(self)
+        FigureCanvas.draw(self)
         self.update()
 
     @staticmethod
