@@ -11,6 +11,8 @@ from gui.plots import *
 from las.file import LasFile
 from dummy import *
 
+def unimplemented(): raise NotImplementedError
+
 class AbstractTrackPanel(QWidget):
     def __init__(self, tracks, parent):
         QWidget.__init__(self,parent)
@@ -103,22 +105,37 @@ class TrackPanel(AbstractTrackPanel):
         QApplication.processEvents()
         self.main_window.adjustSize()
 
-class CurveEditingPanel(AbstractTrackPanel):
-    def __init__(self, curve, index, parent = None):
-        AbstractTrackPanel.__init__(self, [], parent)
-        self.curve = curve
-        self.index = index
-        self.changing_depth = False
-        self._setup_depth_slider(index.min(), index.max())
-
-        track = SinglePlotTrack(Plot(self.curve, self.index), self)
-        self.tracks.append(track)
-        self.layout.addWidget(track, 1, Qt.AlignLeft)
-        self.updateGeometry()
-
-class SinglePlotTrack(QWidget):
-    def __init__(self, plot, parent = None):
+class AbstractPlotTrack(QWidget):
+    def __init__(self, parent = None):
         QWidget.__init__(self, parent)
+        self.change_listeners = []
+    
+    def animation_on(self):
+        self.plot_canvas.animation_on()
+    
+    def animation_off(self):
+        self.plot_canvas.animation_off()
+
+    def set_depth(self, increment):
+        self.plot_canvas.set_increment(increment)
+
+    def my_disconnect(self): unimplemented
+
+    def plots(self): unimplemented
+
+    def add_change_listener(self, cl):
+        self.change_listeners.append(cl)
+        
+    def remove_change_listener(self, cl):
+        self.change_listeners.remove(cl)
+
+    def on_change(self): 
+        for cl in self.change_listeners:
+            cl.tell_changed(self)
+
+class SinglePlotTrack(AbstractPlotTrack):
+    def __init__(self, plot, parent = None):
+        AbstractPlotTrack.__init__(self, parent)
         self.plot = plot
         self.layout = QVBoxLayout(self)
         self.plot_canvas = PlotCanvas(ymin = self.plot.ymin(),
@@ -130,15 +147,6 @@ class SinglePlotTrack(QWidget):
         self.layout.addWidget(self.plot_canvas)
         self.updateGeometry()
 
-    def animation_on(self):
-        self.plot_canvas.animation_on()
-    
-    def animation_off(self):
-        self.plot_canvas.animation_off()
-
-    def set_depth(self, increment):
-        self.plot_canvas.set_increment(increment)
-
     def my_disconnect(self):
         self.hide()
 
@@ -147,13 +155,12 @@ class SinglePlotTrack(QWidget):
 
     def contextMenuEvent(self, event):
         SinglePlotTrackContextMenu(self, self).popup(event.globalPos())
-    
 
-class Track(QWidget):
+class MultiPlotTrack(AbstractPlotTrack):
     def __init__(self, curve_source, parent = None,
                  starting_plot = True, ymin = None,
                  ymax = None, yinc = None):
-        QWidget.__init__(self, parent)
+        AbstractPlotTrack.__init__(self, parent)
         self.curve_source = curve_source
         self.layout = QVBoxLayout(self)
         fixed_size_policy(self)
@@ -196,18 +203,9 @@ class Track(QWidget):
     def plots(self):
         return [pai.plot for pai in self.pais]
 
-    def set_depth(self, increment):
-        self.plot_canvas.set_increment(increment)
-
     def refresh_index(self):
         for pai in self.pais:
             pai.reindex()
-
-    def animation_on(self):
-        self.plot_canvas.animation_on()
-    
-    def animation_off(self):
-        self.plot_canvas.animation_off()
 
     def contextMenuEvent(self, event):
         MultiPlotTrackContextMenu(self, self).popup(event.globalPos())

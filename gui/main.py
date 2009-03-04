@@ -6,69 +6,12 @@ from PyQt4.QtGui import QMainWindow, QMenu, \
     QWidget, QHBoxLayout, QFileDialog, QTabWidget, \
     QDialog, QListWidget, QListWidgetItem, QVBoxLayout,\
     QPushButton, QAbstractItemView, QTabBar, QApplication, \
-    QProgressBar, QProgressDialog, QToolBar, QIcon
+    QProgressBar, QProgressDialog, QToolBar, QIcon, QAction
 
 from gui.gutil import minimum_size_policy
-from gui.icons import CurvePanel
-from gui.merge import MergePanel
 from gui.tracks import TrackPanel
+from gui.curve_view import *
 from las.file import LasFile
-
-class EnhancedCurvePanel(CurvePanel):
-    def __init__(self, curve_source, file_tab_panel, parent = None):
-        CurvePanel.__init__(self, curve_source, parent)
-        self.file_tab_panel = file_tab_panel
-
-    def mouseMoveEvent(self, event):
-        epos = event.pos()
-        for i in range(0, self._tab_count()):
-            if self._set_if_in_tab(i, epos):
-                break
-        return CurvePanel.mouseMoveEvent(self, event)
-
-    def dragMoveEvent(self, event):
-        epos = event.pos()
-        for i in range(0, self._tab_count()):
-            if self._set_if_in_tab(i, epos):
-                break
-        return CurvePanel.dragMoveEvent(self, event)
-
-    def _set_if_in_tab(self, index, point):
-        tb = self.file_tab_panel.tabBar()
-        rect = tb.tabRect(index)
-        if rect.contains(point):
-            self.file_tab_panel.setCurrentIndex(index)
-            return True
-        return False
-
-    def _tab_count(self):
-        return self.file_tab_panel.tabBar().count()
-
-class CurvePanelTab(QWidget):
-    def __init__(self, curve_source, file_tab_panel):
-        QWidget.__init__(self)
-        self.curve_source = curve_source
-        self.setSizePolicy(QtGui.QSizePolicy.Expanding,
-                           QtGui.QSizePolicy.Expanding)
-        self.file_tab_panel = file_tab_panel
-        self.layout = QVBoxLayout(self)
-        self.curve_panel = EnhancedCurvePanel(curve_source, self.file_tab_panel, self)
-        
-        self.toolbar = QToolBar(self)
-#        self.toolbar.addAction(QIcon("icons/floppy_disk_48.png"), "save", self.on_save)
-        self.toolbar.addAction(QIcon("icons/cross_48.png"), "close", self.on_close)
-
-        self.layout.addWidget(self.toolbar)
-        self.layout.addWidget(self.curve_panel)
-
-        self.updateGeometry()
-        self.adjustSize()
-
-    def on_close(self):
-        self.file_tab_panel.removeTab(self.file_tab_panel.currentIndex())
-
-    def on_save(self):
-        self.emit(SIGNAL("save_curve_source"), self.curve_source)
 
 class ApplicationWindow(QMainWindow):
     def __init__(self):
@@ -88,9 +31,6 @@ class ApplicationWindow(QMainWindow):
         self.file_menu = FileMenu(self)
         self.menuBar().addMenu(self.file_menu)
         
-#        self.tracks_menu = TracksMenu(self)
-#        self.menuBar().addMenu(self.tracks_menu)
-
         self.main_widget.setFocus()
         self.setCentralWidget(self.main_widget)
         self.updateGeometry()
