@@ -1,6 +1,6 @@
 from __future__ import with_statement
 
-from PyQt4 import QtCore
+from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import SIGNAL, QSize
 from PyQt4.QtGui import QMainWindow, QMenu, \
     QWidget, QHBoxLayout, QFileDialog, QTabWidget, \
@@ -15,8 +15,8 @@ from gui.tracks import TrackPanel
 from las.file import LasFile
 
 class EnhancedCurvePanel(CurvePanel):
-    def __init__(self, curve_source, file_tab_panel):
-        CurvePanel.__init__(self, curve_source)
+    def __init__(self, curve_source, file_tab_panel, parent = None):
+        CurvePanel.__init__(self, curve_source, parent)
         self.file_tab_panel = file_tab_panel
 
     def mouseMoveEvent(self, event):
@@ -43,6 +43,25 @@ class EnhancedCurvePanel(CurvePanel):
 
     def _tab_count(self):
         return self.file_tab_panel.tabBar().count()
+
+class CurvePanelTab(QWidget):
+    def __init__(self, curve_source, file_tab_panel):
+        QWidget.__init__(self)
+        self.setSizePolicy(QtGui.QSizePolicy.Expanding,
+                           QtGui.QSizePolicy.Expanding)
+        self.file_tab_panel = file_tab_panel
+        self.layout = QVBoxLayout(self)
+        self.curve_panel = EnhancedCurvePanel(curve_source, self.file_tab_panel, self)
+        self.layout.addWidget(self.curve_panel)
+        self.close_button = QPushButton("Close",self)
+        QWidget.connect(self.close_button, SIGNAL("clicked()"),
+                        self.close_tab)
+        self.layout.addWidget(self.close_button)
+        self.updateGeometry()
+        self.adjustSize()
+
+    def close_tab(self):
+        self.file_tab_panel.removeTab(self.file_tab_panel.currentIndex())
 
 class ApplicationWindow(QMainWindow):
     def __init__(self):
@@ -76,12 +95,12 @@ class ApplicationWindow(QMainWindow):
         return self.file_tab_panel.currentWidget()
 
     def create_new_curve_panel(self, curve_source):
-        curve_panel = EnhancedCurvePanel(curve_source, self.file_tab_panel)
-        self.file_tab_panel.addTab(curve_panel, curve_source.name())
+        curve_tab = CurvePanelTab(curve_source, self.file_tab_panel)
+        self.file_tab_panel.addTab(curve_tab, curve_source.name())
         self.file_tab_panel.setCurrentIndex(self.file_tab_panel.tabBar().count() - 1)
         QApplication.processEvents()
-        curve_panel.add_curves_from_source()
-        return curve_panel
+        curve_tab.curve_panel.add_curves_from_source()
+        return curve_tab
 
 class FileTabPanel(QTabWidget):
     def __init__(self, main_window):

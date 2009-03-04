@@ -66,8 +66,8 @@ class CurveEditingWindow(QMainWindow):
         
 
 class CurvePanel(QListView):
-    def __init__(self, curve_source):
-        QListView.__init__(self)
+    def __init__(self, curve_source, parent = None):
+        QListView.__init__(self, parent)
         self.curve_source = curve_source
         self.setViewMode(QListView.IconMode)
         self.setIconSize(QSize(64,64))
@@ -75,6 +75,8 @@ class CurvePanel(QListView):
         self.setModel(self.model)
         self.setWrapping(True)
         self.setAcceptDrops(True)
+        self.updateGeometry()
+        self.adjustSize()
         self.show()
 
     def add_curves_from_source(self):

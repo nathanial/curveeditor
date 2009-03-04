@@ -103,9 +103,6 @@ class TrackPanel(AbstractTrackPanel):
         QApplication.processEvents()
         self.main_window.adjustSize()
 
-
-
-
 class CurveEditingPanel(AbstractTrackPanel):
     def __init__(self, curve, index, parent = None):
         AbstractTrackPanel.__init__(self, [], parent)
