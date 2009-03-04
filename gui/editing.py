@@ -6,20 +6,46 @@ from PyQt4.QtCore import QRectF, Qt, QSize, QMimeData
 from PyQt4.QtGui import QApplication, QMainWindow, QLabel,\
     QPixmap, QWidget, QPainter, QVBoxLayout, QGridLayout, QListView, \
     QStandardItem, QStandardItemModel, QIcon, QAbstractItemView, \
-    QMenu, QMenuBar, QSizePolicy, QToolBar
+    QMenu, QMenuBar, QSizePolicy, QToolBar, QTableWidget, QTableWidgetItem
 
 class CurveEditingPanel(AbstractTrackPanel):
     def __init__(self, curve, index, parent = None):
         AbstractTrackPanel.__init__(self, [], parent)
         self.curve = curve
         self.index = index
+
+        self._setup_table()
+
         self.changing_depth = False
         self._setup_depth_slider(index.min(), index.max())
 
         track = SinglePlotTrack(Plot(self.curve, self.index), self)
+        track.add_change_listener(self)
+
         self.tracks.append(track)
         self.layout.addWidget(track, 1, Qt.AlignLeft)
         self.updateGeometry()
+
+    def _setup_table(self):
+        num_points = len(self.curve)
+        self.table = QTableWidget(num_points, 2, self)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setHorizontalHeaderLabels(["depth","value"])
+        self.layout.addWidget(self.table)
+        yrange = self.index.range()
+        for i in range(0,num_points):
+            val_idx = num_points - (i + 1)
+            self.table.setItem(i,0,QTableWidgetItem(str(self.index[val_idx])))
+            self.table.setItem(i,1,QTableWidgetItem(str(self.curve[val_idx])))
+
+    def receive_change(self, source):
+        self._update_table()
+
+    def _update_table(self):
+        track = self.tracks[0]
+        
+            
+        
 
 class CurveEditingWindow(QMainWindow):
     def __init__(self, plot, parent = None):

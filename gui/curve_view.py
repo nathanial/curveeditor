@@ -11,7 +11,6 @@ from gui.plots import *
 from gui.icons import *
 from gui.editing import *
 from las.file import LasFile
-from dummy import *
 
 class CurvePanel(QListView):
     def __init__(self, curve_source, parent = None):
@@ -51,7 +50,7 @@ class CurvePanel(QListView):
         item = PlotItem(plot)
         self.model.appendRow(item)
 
-class EnhancedCurvePanel(CurvePanel):
+class DraggableCurvePanel(CurvePanel):
     def __init__(self, curve_source, file_tab_panel, parent = None):
         CurvePanel.__init__(self, curve_source, parent)
         self.file_tab_panel = file_tab_panel
@@ -91,11 +90,10 @@ class CurvePanelTab(QWidget):
     def __init__(self, curve_source, file_tab_panel):
         QWidget.__init__(self)
         self.curve_source = curve_source
-        self.setSizePolicy(QtGui.QSizePolicy.Expanding,
-                           QtGui.QSizePolicy.Expanding)
+        self.setSizePolicy(QtGui.QSizePolicy.Expanding,QtGui.QSizePolicy.Expanding)
         self.file_tab_panel = file_tab_panel
         self.layout = QVBoxLayout(self)
-        self.curve_panel = EnhancedCurvePanel(curve_source, self.file_tab_panel, self)
+        self.curve_panel = DraggableCurvePanel(curve_source, self.file_tab_panel, self)
 
         self._setup_tool_bar()
         

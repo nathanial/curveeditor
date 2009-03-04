@@ -9,7 +9,6 @@ from PyQt4.QtCore import SIGNAL, QSize, QMutex
 from gui.gutil import minimum_size_policy, fixed_size_policy
 from gui.plots import *
 from las.file import LasFile
-from dummy import *
 
 def unimplemented(): raise NotImplementedError
 
@@ -119,6 +118,9 @@ class AbstractPlotTrack(QWidget):
     def set_depth(self, increment):
         self.plot_canvas.set_increment(increment)
 
+    def visible_points(self): 
+        return self.plot_canvas.visible_points()
+    
     def my_disconnect(self): unimplemented
 
     def plots(self): unimplemented
@@ -131,7 +133,7 @@ class AbstractPlotTrack(QWidget):
 
     def on_change(self): 
         for cl in self.change_listeners:
-            cl.tell_changed(self)
+            cl.receive_change(self)
 
 class SinglePlotTrack(AbstractPlotTrack):
     def __init__(self, plot, parent = None):
