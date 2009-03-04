@@ -128,9 +128,9 @@ class AbstractPlotTrack(QWidget):
     def remove_change_callback(self, cc):
         self.change_callbacks.remove(cc)
 
-    def notify_change(self, plot = None): 
+    def notify_change(self, plot, idx): 
         for cc in self.change_callbacks:
-            cc(self, plot)
+            cc(self, plot, idx)
 
 class SinglePlotTrack(AbstractPlotTrack):
     def __init__(self, plot, parent = None):

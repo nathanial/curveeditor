@@ -125,11 +125,11 @@ class Plot(Line2D):
         if len(ind) > 1: ind = ind[0]
         self.modify_xdata(ind, event.xdata)
         self.update_animation()
+        self.notify_change(ind)
 
     def drag_on_release(self, event):
         self.press = None
         self.animation_off()
-        self.notify_change()
 
     def disconnect_draggable(self):
         self.canvas.mpl_disconnect(self.cidpress)
@@ -165,9 +165,9 @@ class Plot(Line2D):
     def remove_change_listener(self, cc):
         self.change_callbacks.remove(cc)
 
-    def notify_change(self):
+    def notify_change(self, idx):
         for cc in self.change_callbacks:
-            cc(self)
+            cc(self, idx)
 
     def modify_xdata(self, ind, new_xdata):
         self.current_xfield[ind] = new_xdata
@@ -323,8 +323,7 @@ class PlotCanvas(FigureCanvas):
             self.draw()
 
     def _percentage_increment(self):
-        yrange = self.ymax - self.ymin
-        return (self.increment / 100.0) * yrange
+        return (self.increment / 100.0) * self.yrange()
 
     def draw(self):
         self.replot = True
@@ -356,6 +355,10 @@ class PlotCanvas(FigureCanvas):
         return (PlotCanvas.xmax(plots) - plot.xmax()) / 2.0        
 
 
+    def yrange(self):
+        return self.ymax - self.ymin
+
+        
 class PlotAndInfo(object):
     def __init__(self, xcurve_name, curve_source, plot_canvas, info_panel):
         self.xcurve_name = xcurve_name
