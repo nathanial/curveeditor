@@ -44,7 +44,6 @@ class EnhancedCurvePanel(CurvePanel):
     def _tab_count(self):
         return self.file_tab_panel.tabBar().count()
 
-
 class ApplicationWindow(QMainWindow):
     def __init__(self):
         self.tracks = []

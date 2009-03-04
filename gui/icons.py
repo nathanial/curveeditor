@@ -50,21 +50,16 @@ class PlotItemModel(QStandardItemModel):
 
 class CurveEditingWindow(QMainWindow):
     def __init__(self, plot, parent = None):
-        print "first"
         QMainWindow.__init__(self, parent)
         self.plot = plot
         self.setWindowTitle(self.plot.name())
-        self.layout = QVBoxLayout(self)
         self._setup_menu()
         QApplication.processEvents()
-        print "second"
         self.editing_panel = CurveEditingPanel(self.plot.original_xfield,
                                                self.plot.original_yfield,
                                                self)
         self.setCentralWidget(self.editing_panel)
         self.updateGeometry()
-        print "third"
-
 
     def _setup_menu(self):
         self.menuBar().addAction("&Foo")

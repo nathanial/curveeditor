@@ -210,8 +210,7 @@ class PlotCanvas(FigureCanvas):
     def __init__(self, ymin, ymax, yinc, parent = None, width=5, height=4, dpi=100):
         params = SubplotParams(left=.02, right=.98, top=.99, bottom=.01)
         self.fig = Figure(figsize=(width,height), dpi=dpi,
-                          subplotpars=params)
-                
+                          subplotpars=params)                
         self.axes = self.fig.add_subplot(111)
         self.axes.hold(False)
         self.axes.set_xticks([])
@@ -306,12 +305,8 @@ class PlotCanvas(FigureCanvas):
         return ((self.increment + 1) / 100.0) * yrange
 
     def draw(self):
-        parent = self.parent()
-        if parent:
-            print "parent = %s " % parent
-            print "parent-size = %s " % parent.size()
         self.replot = True
-        FigureCanvas.draw(self)
+        FigureCanvasAgg.draw(self)
         self.update()
 
     @staticmethod

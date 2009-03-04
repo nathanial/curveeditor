@@ -124,9 +124,6 @@ class SinglePlotTrack(QWidget):
         QWidget.__init__(self, parent)
         self.plot = plot
         self.layout = QVBoxLayout(self)
-        self.setMinimumWidth(500)
-        self.setMinimumHeight(500)
-        self.resize(500, 700)
         self.plot_canvas = PlotCanvas(ymin = self.plot.ymin(),
                                       ymax = self.plot.ymax(),
                                       yinc = 100, 
