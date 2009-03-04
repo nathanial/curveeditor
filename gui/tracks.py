@@ -107,7 +107,7 @@ class TrackPanel(AbstractTrackPanel):
 class AbstractPlotTrack(QWidget):
     def __init__(self, parent = None):
         QWidget.__init__(self, parent)
-        self.change_listeners = []
+        self.change_callbacks = []
     
     def animation_on(self):
         self.plot_canvas.animation_on()
@@ -118,22 +118,19 @@ class AbstractPlotTrack(QWidget):
     def set_depth(self, increment):
         self.plot_canvas.set_increment(increment)
 
-    def visible_points(self): 
-        return self.plot_canvas.visible_points()
-    
     def my_disconnect(self): unimplemented
 
     def plots(self): unimplemented
 
-    def add_change_listener(self, cl):
-        self.change_listeners.append(cl)
+    def add_change_callback(self, cc):
+        self.change_callbacks.append(cc)
         
-    def remove_change_listener(self, cl):
-        self.change_listeners.remove(cl)
+    def remove_change_callback(self, cc):
+        self.change_callbacks.remove(cc)
 
-    def on_change(self): 
-        for cl in self.change_listeners:
-            cl.receive_change(self)
+    def notify_change(self, plot = None): 
+        for cc in self.change_callbacks:
+            cc(self, plot)
 
 class SinglePlotTrack(AbstractPlotTrack):
     def __init__(self, plot, parent = None):
@@ -146,6 +143,7 @@ class SinglePlotTrack(AbstractPlotTrack):
                                       parent = self,
                                       width=4, height=6)
         self.plot_canvas.add_plot(self.plot)
+        self.plot.add_change_callback(self.notify_change)
         self.layout.addWidget(self.plot_canvas)
         self.updateGeometry()
 

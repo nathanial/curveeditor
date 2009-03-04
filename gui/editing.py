@@ -20,7 +20,7 @@ class CurveEditingPanel(AbstractTrackPanel):
         self._setup_depth_slider(index.min(), index.max())
 
         track = SinglePlotTrack(Plot(self.curve, self.index), self)
-        track.add_change_listener(self)
+        track.add_change_callback(self.on_change)
 
         self.tracks.append(track)
         self.layout.addWidget(track, 1, Qt.AlignLeft)
@@ -33,20 +33,28 @@ class CurveEditingPanel(AbstractTrackPanel):
         self.table.setHorizontalHeaderLabels(["depth","value"])
         self.layout.addWidget(self.table)
         yrange = self.index.range()
+        last = None
         for i in range(0,num_points):
             val_idx = num_points - (i + 1)
-            self.table.setItem(i,0,QTableWidgetItem(str(self.index[val_idx])))
-            self.table.setItem(i,1,QTableWidgetItem(str(self.curve[val_idx])))
+            depth = QTableWidgetItem(str(self.index[val_idx]))
+            value = QTableWidgetItem(str(self.curve[val_idx]))
+            self.table.setItem(i,0,depth)
+            self.table.setItem(i,1,value)
+            last = depth
+        self.table.scrollToItem(last)
 
-    def receive_change(self, source):
+    def on_change(self, track, plot):
         self._update_table()
 
     def _update_table(self):
-        track = self.tracks[0]
+        num_points = len(self.curve)
+        for i in range(0, num_points):
+            val_idx = num_points - (i + 1)
+            depth = QTableWidgetItem(str(self.index[val_idx]))
+            value = QTableWidgetItem(str(self.curve[val_idx]))
+            self.table.setItem(i,0,depth)
+            self.table.setItem(i,1,value)
         
-            
-        
-
 class CurveEditingWindow(QMainWindow):
     def __init__(self, plot, parent = None):
         QMainWindow.__init__(self, parent)

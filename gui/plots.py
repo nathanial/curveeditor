@@ -30,6 +30,7 @@ class Plot(Line2D):
         self.yscale = 1.0
         self.xoffset = 0
         self.yoffset = 0
+        self.change_callbacks = []
         Line2D.__init__(self, 
                         self.current_xfield.to_list(), 
                         self.current_yfield.to_list(),
@@ -123,12 +124,13 @@ class Plot(Line2D):
         ind = self.press
         if len(ind) > 1: ind = ind[0]
         self.current_xfield[ind] = event.xdata
-        self.set_xdata(self.current_xfield.to_list())
+        self.set_xdata(self.current_xfield.to_list())        
         self.update_animation()
 
     def drag_on_release(self, event):
         self.press = None
         self.animation_off()
+        self.notify_change()
 
     def disconnect_draggable(self):
         self.canvas.mpl_disconnect(self.cidpress)
@@ -157,6 +159,16 @@ class Plot(Line2D):
         self.set_animated(False)
         self.background = None
         self.canvas.draw()
+    
+    def add_change_callback(self, cc):
+        self.change_callbacks.append(cc)
+    
+    def remove_change_listener(self, cc):
+        self.change_callbacks.remove(cc)
+
+    def notify_change(self):
+        for cc in self.change_callbacks:
+            cc(self)
 
 class PlotBuilder(object):
     def __init__(self, xcurve_name, ycurve_name):
@@ -308,7 +320,7 @@ class PlotCanvas(FigureCanvas):
 
     def _percentage_increment(self):
         yrange = self.ymax - self.ymin
-        return ((self.increment + 1) / 100.0) * yrange
+        return (self.increment / 100.0) * yrange
 
     def draw(self):
         self.replot = True

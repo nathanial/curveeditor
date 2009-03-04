@@ -8,7 +8,6 @@ from PyQt4.QtGui import QMainWindow, QMenu, QWidget,\
 from PyQt4.QtCore import SIGNAL, QSize, QMutex
 from gui.gutil import minimum_size_policy, fixed_size_policy
 from gui.plots import *
-from gui.icons import *
 from gui.editing import *
 from las.file import LasFile
 
