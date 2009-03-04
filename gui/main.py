@@ -6,7 +6,7 @@ from PyQt4.QtGui import QMainWindow, QMenu, \
     QWidget, QHBoxLayout, QFileDialog, QTabWidget, \
     QDialog, QListWidget, QListWidgetItem, QVBoxLayout,\
     QPushButton, QAbstractItemView, QTabBar, QApplication, \
-    QProgressBar, QProgressDialog
+    QProgressBar, QProgressDialog, QToolBar, QIcon
 
 from gui.gutil import minimum_size_policy
 from gui.icons import CurvePanel
@@ -47,21 +47,28 @@ class EnhancedCurvePanel(CurvePanel):
 class CurvePanelTab(QWidget):
     def __init__(self, curve_source, file_tab_panel):
         QWidget.__init__(self)
+        self.curve_source = curve_source
         self.setSizePolicy(QtGui.QSizePolicy.Expanding,
                            QtGui.QSizePolicy.Expanding)
         self.file_tab_panel = file_tab_panel
         self.layout = QVBoxLayout(self)
         self.curve_panel = EnhancedCurvePanel(curve_source, self.file_tab_panel, self)
+        
+        self.toolbar = QToolBar(self)
+#        self.toolbar.addAction(QIcon("icons/floppy_disk_48.png"), "save", self.on_save)
+        self.toolbar.addAction(QIcon("icons/cross_48.png"), "close", self.on_close)
+
+        self.layout.addWidget(self.toolbar)
         self.layout.addWidget(self.curve_panel)
-        self.close_button = QPushButton("Close",self)
-        QWidget.connect(self.close_button, SIGNAL("clicked()"),
-                        self.close_tab)
-        self.layout.addWidget(self.close_button)
+
         self.updateGeometry()
         self.adjustSize()
 
-    def close_tab(self):
+    def on_close(self):
         self.file_tab_panel.removeTab(self.file_tab_panel.currentIndex())
+
+    def on_save(self):
+        self.emit(SIGNAL("save_curve_source"), self.curve_source)
 
 class ApplicationWindow(QMainWindow):
     def __init__(self):
@@ -96,6 +103,7 @@ class ApplicationWindow(QMainWindow):
 
     def create_new_curve_panel(self, curve_source):
         curve_tab = CurvePanelTab(curve_source, self.file_tab_panel)
+        QWidget.connect(curve_tab, SIGNAL("save_curve_source"), self.file_menu.save)
         self.file_tab_panel.addTab(curve_tab, curve_source.name())
         self.file_tab_panel.setCurrentIndex(self.file_tab_panel.tabBar().count() - 1)
         QApplication.processEvents()
@@ -119,7 +127,6 @@ class FileMenu(QMenu):
         self.addAction('&Quit', self.quit,
                        QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
                        
-    
     def open(self):
         dialog = QFileDialog(self, "Open LAS")
         dialog.setFileMode(QFileDialog.ExistingFiles)
@@ -143,16 +150,16 @@ class FileMenu(QMenu):
                 progress.hide()
                 
 
-    def save(self):
-        curve_panel = self.app_window.curve_panel_with_focus()
-        lasfile = curve_panel.curve_source
+    def save(self, lasfile = None):
+        if not lasfile:
+            lasfile = self.app_window.curve_panel_with_focus().curve_source
         filename = lasfile.path
         with open(filename, "w") as f:
             f.write(lasfile.to_las())
 
-    def save_as(self):
-        curve_panel = self.app_window.curve_panel_with_focus()
-        lasfile = curve_panel.curve_source
+    def save_as(self, lasfile = None):
+        if not lasfile:
+            lasfile = self.app_window.curve_panel_with_focus().curve_source
         dialog = QFileDialog(self, "Save As")
         dialog.setAcceptMode(QFileDialog.AcceptSave)
         if dialog.exec_():

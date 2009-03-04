@@ -6,7 +6,7 @@ from PyQt4.QtCore import QRectF, Qt, QSize, QMimeData
 from PyQt4.QtGui import QApplication, QMainWindow, QLabel,\
     QPixmap, QWidget, QPainter, QVBoxLayout, QGridLayout, QListView, \
     QStandardItem, QStandardItemModel, QIcon, QAbstractItemView, \
-    QMenu, QMenuBar, QSizePolicy
+    QMenu, QMenuBar, QSizePolicy, QToolBar
 
 ICON_WIDTH=64
 ICON_HEIGHT=64
@@ -62,8 +62,14 @@ class CurveEditingWindow(QMainWindow):
         self.updateGeometry()
 
     def _setup_menu(self):
-        self.menuBar().addAction("&Foo")
-        
+        self.tool_bar = QToolBar(self)
+        self.addToolBar(Qt.TopToolBarArea, 
+                        self.tool_bar)
+        self.tool_bar.addAction(QIcon("icons/floppy_disk_48.png"), "save", self.on_save)
+        self.tool_bar.addAction(QIcon("icons/cross_48.png"), "close", self.on_close)
+    
+    def on_save(self): pass
+    def on_close(self): pass
 
 class CurvePanel(QListView):
     def __init__(self, curve_source, parent = None):
