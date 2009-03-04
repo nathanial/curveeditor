@@ -15,12 +15,13 @@ class CurveEditingPanel(AbstractTrackPanel):
         self.index = index
 
         self._setup_table()
+        self._connect_table()
 
         self.changing_depth = False
         self._setup_depth_slider(index.min(), index.max())
 
         track = SinglePlotTrack(Plot(self.curve, self.index), self)
-        track.add_change_callback(self.on_change)
+        track.add_change_callback(self.on_plot_change)
 
         self.tracks.append(track)
         self.layout.addWidget(track, 1, Qt.AlignLeft)
@@ -32,28 +33,46 @@ class CurveEditingPanel(AbstractTrackPanel):
         self.table.verticalHeader().setVisible(False)
         self.table.setHorizontalHeaderLabels(["depth","value"])
         self.layout.addWidget(self.table)
-        yrange = self.index.range()
+        self._update_table(scroll_to_last = True)
+
+    def on_plot_change(self, track, plot):
+        self._disconnect_table()
+        self._update_table()
+        self._connect_table()
+
+    def on_table_change(self, row, col):
+        print "table change"
+        track = self.tracks[0]
+        num_points = len(self.curve)
+        new_xdata = float(self.table.item(row,col).text())
+        idx = num_points - (row + 1)
+        print "new data = %s " % new_xdata
+        print "idx = %s " % idx
+        track.plot.modify_xdata(idx, new_xdata)
+        track.plot.canvas.draw()
+        track.repaint()
+
+    def _update_table(self, scroll_to_last = False):
+        num_points = len(self.curve)
         last = None
-        for i in range(0,num_points):
+        for i in range(0, num_points):
             val_idx = num_points - (i + 1)
             depth = QTableWidgetItem(str(self.index[val_idx]))
+            depth.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
             value = QTableWidgetItem(str(self.curve[val_idx]))
             self.table.setItem(i,0,depth)
             self.table.setItem(i,1,value)
             last = depth
-        self.table.scrollToItem(last)
+        if scroll_to_last:
+            self.table.scrollToItem(last)
 
-    def on_change(self, track, plot):
-        self._update_table()
+    def _connect_table(self):
+        QWidget.connect(self.table, SIGNAL("cellChanged(int,int)"),
+                        self.on_table_change)
 
-    def _update_table(self):
-        num_points = len(self.curve)
-        for i in range(0, num_points):
-            val_idx = num_points - (i + 1)
-            depth = QTableWidgetItem(str(self.index[val_idx]))
-            value = QTableWidgetItem(str(self.curve[val_idx]))
-            self.table.setItem(i,0,depth)
-            self.table.setItem(i,1,value)
+    def _disconnect_table(self):
+        QWidget.disconnect(self.table, SIGNAL("cellChanged(int,int)"),
+                           self.on_table_change)
         
 class CurveEditingWindow(QMainWindow):
     def __init__(self, plot, parent = None):

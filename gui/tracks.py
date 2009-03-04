@@ -229,7 +229,7 @@ class DepthSlider(QWidget):
         
         depth_range = max_depth - min_depth
         increment = depth_range / 8.0
-        rrange = range(0,8)
+        rrange = range(0,9)
         rrange.reverse()
         for i in rrange:
             tick_depth = i * increment + min_depth

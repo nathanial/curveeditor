@@ -123,8 +123,7 @@ class Plot(Line2D):
         if self.press is None: return
         ind = self.press
         if len(ind) > 1: ind = ind[0]
-        self.current_xfield[ind] = event.xdata
-        self.set_xdata(self.current_xfield.to_list())        
+        self.modify_xdata(ind, event.xdata)
         self.update_animation()
 
     def drag_on_release(self, event):
@@ -169,6 +168,10 @@ class Plot(Line2D):
     def notify_change(self):
         for cc in self.change_callbacks:
             cc(self)
+
+    def modify_xdata(self, ind, new_xdata):
+        self.current_xfield[ind] = new_xdata
+        self.set_xdata(self.current_xfield.to_list())
 
 class PlotBuilder(object):
     def __init__(self, xcurve_name, ycurve_name):
@@ -226,6 +229,7 @@ class PlotInfo(QWidget):
 
 class PlotCanvas(FigureCanvas):
     def __init__(self, ymin, ymax, yinc, parent = None, width=5, height=4, dpi=100):
+        #params control border sizes
         params = SubplotParams(left=.02, right=.98, top=.99, bottom=.01)
         self.fig = Figure(figsize=(width,height), dpi=dpi,
                           subplotpars=params)                
