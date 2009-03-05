@@ -57,6 +57,8 @@ class CurveEditingPanel(AbstractTrackPanel):
             self.table.setItem(i, 0, depth)
             self.table.setItem(i, 1, value)
         self.table.scrollToItem(last)
+        QWidget.connect(self.table, SIGNAL("itemSelectionChanged()"),
+                        self._hilite_selected_items)
             
     def on_plot_change(self, track, plot, idx):
         self._disconnect_table()
@@ -80,6 +82,9 @@ class CurveEditingPanel(AbstractTrackPanel):
         value = QTableWidgetItem(str(self.curve[val_idx]))
         self.table.setItem(row,1,value)
         self.table.scrollToItem(value)
+
+    def _hilite_selected_items(self):
+        print [i.row() for i in self.table.selectedIndexes()]
 
     def _connect_table(self):
         QWidget.connect(self.table, SIGNAL("cellChanged(int,int)"),
