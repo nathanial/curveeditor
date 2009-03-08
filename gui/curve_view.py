@@ -10,12 +10,15 @@ from gui.gutil import minimum_size_policy, fixed_size_policy
 from gui.plots import *
 from gui.editing import *
 from las.file import LasFile
+import registry
+from util import cmp_max
 
 class CurvePanel(QListView):
     def __init__(self, curve_source, parent = None):
         QListView.__init__(self, parent)
         self.curve_source = curve_source
         self.setViewMode(QListView.IconMode)
+        self.setSelectionMode(QListView.ExtendedSelection)
         self.setIconSize(QSize(64,64))
         self.model = PlotItemModel()
         self.setModel(self.model)
@@ -34,50 +37,79 @@ class CurvePanel(QListView):
     def edit(self, index, trigger, event):
         if trigger == QAbstractItemView.DoubleClicked:
             item = self.model.item(index.row())
-            plot = item.plot
-            dialog = CurveEditingWindow(plot, self)
+            plots = item.plots
+            dialog = CurveEditingWindow(plots, self)
             dialog.show()
             return True
         else:
             return False
+
+    def mousePressEvent(self, event):
+        if self._is_empty(event.pos()): self.clearSelection()
+        return QListView.mousePressEvent(self, event)
 
     def add_new_curve(self):
         pass
     
     def add_curve(self, curve):
         plot = Plot(curve, self.curve_source.index())
+        self.add_plot(plot)
+
+    def add_plot(self, plot):
         item = PlotItem(plot)
         self.model.appendRow(item)
+
+    def _is_empty(self, pos):
+        return self.indexAt(pos).row() is -1
+
+class CurvePanelContextMenu(QMenu):
+    def __init__(self, curve_panel):
+        QMenu.__init__(self, curve_panel)
+        self.curve_panel = curve_panel
+        self.addAction("&Copy", self.on_copy)
+        self.addAction("&Paste", self.on_paste)
+        self.addAction("&Delete", self.on_delete)
+        self.addAction("&Layout", self.on_layout)
+        self.addAction("&Combine", self.on_combine)
+
+    def on_copy(self): 
+        plot_items = self._selected_plot_items()
+        registry.clipboard['plot_items'] = plot_items
+
+    def on_paste(self): 
+        plot_items = registry.clipboard['plot_items']
+        for pi in plot_items:
+            self.curve_panel.add_plot(pi.plot)
+
+    def on_delete(self):
+        model = self.curve_panel.model
+        indexes = [mi.row() for mi in self.curve_panel.selectedIndexes()]
+        indexes.sort(cmp=cmp_max)
+        for index in indexes:
+            model.removeRow(index)
+
+    def on_layout(self):
+        self.curve_panel.doItemsLayout()
+
+    def on_combine(self):
+        plot_items = self._selected_plot_items()
+        cpi = CompoundPlotItem(plot_items)
+        self.curve_panel.model.appendRow(cpi)
+        
+
+    def _selected_plot_items(self):
+        model = self.curve_panel.model
+        indexes = [mi.row() for mi in self.curve_panel.selectedIndexes()]
+        return [model.item(i) for i in indexes]
+        
 
 class DraggableCurvePanel(CurvePanel):
     def __init__(self, curve_source, file_tab_panel, parent = None):
         CurvePanel.__init__(self, curve_source, parent)
         self.file_tab_panel = file_tab_panel
-
-    def mouseMoveEvent(self, event):
-        epos = event.pos()
-        for i in range(0, self._tab_count()):
-            if self._set_if_in_tab(i, epos):
-                break
-        return CurvePanel.mouseMoveEvent(self, event)
-
-    def dragMoveEvent(self, event):
-        epos = event.pos()
-        for i in range(0, self._tab_count()):
-            if self._set_if_in_tab(i, epos):
-                break
-        return CurvePanel.dragMoveEvent(self, event)
-
-    def _set_if_in_tab(self, index, point):
-        tb = self.file_tab_panel.tabBar()
-        rect = tb.tabRect(index)
-        if rect.contains(point):
-            self.file_tab_panel.setCurrentIndex(index)
-            return True
-        return False
-
-    def _tab_count(self):
-        return self.file_tab_panel.tabBar().count()
+    
+    def contextMenuEvent(self, event):
+        CurvePanelContextMenu(self).popup(event.globalPos())
 
 class ExpandoWidget(QWidget):
     def __init__(self, parent = None):

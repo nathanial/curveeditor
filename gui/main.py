@@ -53,8 +53,8 @@ class ApplicationWindow(QMainWindow):
 class FileTabPanel(QTabWidget):
     def __init__(self, main_window):
         QTabWidget.__init__(self, main_window)
+        self.setMouseTracking(True)
 
-        
 class FileMenu(QMenu):
     def __init__(self, parent):
         self.app_window = parent

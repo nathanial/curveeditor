@@ -5,15 +5,12 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure, SubplotParams
 from matplotlib.lines import Line2D
+import os
+import registry
 
 from gui.gutil import minimum_size_policy, fixed_size_policy
 from las.file import transform
 from util import *
-
-ICON_WIDTH=64
-ICON_HEIGHT=64
-CAPTION_LENGTH = 6
-LINE_WIDTH = 4
 
 class Plot(Line2D):
     def __init__(self, xfield = None, yfield = None, canvas = None, *args, **kwargs):
@@ -416,31 +413,41 @@ class PlotItem(QStandardItem):
         icon = self._create_icon(plot)
         QStandardItem.__init__(self, icon, plot.name())
         self.icon = icon
-        self.plot = plot
+        self.plots = [plot]
 
     def _create_icon(self, plot):
-        plot_canvas = PlotCanvas(ymin=plot.ymin(),
-                                  ymax=plot.ymax(),
-                                  yinc=(plot.ymax() - plot.ymin()))
-        plot_canvas.add_plot(plot)
-        filename = "tmp/" + plot.name() + ".png"
-        plot_canvas.fig.savefig(filename)
-        plot_canvas.remove_plot(plot)
+        filename = save_plot(plot)
         return QIcon(QPixmap(filename))
+
+class CompoundPlotItem(QStandardItem):
+    def __init__(self, plot_items):
+        icon = self._montage(plot_items)
+        plots = [pi.plot for pi in plot_items]
+        name = " ".join([p.name() for p in plots])
+        QStandardItem.__init__(self, icon, name)
+        self.icon = icon
+        self.plots = plots
+        self.plot_items = plot_items
+
+    def _montage(self, plot_items):
+        plots = flatten([pi.plots for pi in plot_items])
+        filenames = [save_plot(plot) for plot in plots]
+        output = "tmp/" + registry.unique_name() + ".png"
+        os.system("convert " + " ".join(filenames) + " +append " + output)
+        os.system("convert " + output + ' -resize 500x400\! ' + output )
+        return QIcon(QPixmap(output))
 
 class PlotItemModel(QStandardItemModel):
     def mimeData(self, indexes):
-        assert len(indexes) == 1
-        index = indexes[0]
-        item = self.item(index.row())
-        plot = item.plot
         mdata = QStandardItemModel.mimeData(self, indexes)
-        mdata.xcurve = plot.original_xfield
-        mdata.ycurve = plot.original_yfield
+        items = [self.item(index.row()) for index in indexes]
+        plots = [item.plot for item in items]
+        mdata.plots = plots
         return mdata
 
     def dropMimeData(self, mime_data, action, row, column, parent):
-        plot = Plot(mime_data.xcurve, mime_data.ycurve)
-        item = PlotItem(plot)
-        self.appendRow(item)
+        plots = mime_data.plots
+        for plot in plots:
+            item = PlotItem(plot)
+            self.appendRow(item)
         return True

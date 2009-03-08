@@ -9,26 +9,25 @@ from PyQt4.QtGui import QApplication, QMainWindow, QLabel,\
     QMenu, QMenuBar, QSizePolicy, QToolBar, QTableWidget, QTableWidgetItem
 
 class CurveEditingPanel(AbstractTrackPanel):
-    def __init__(self, curve, index, parent = None):
+    def __init__(self, plots, parent = None):
         AbstractTrackPanel.__init__(self, [], parent)
-        self.curve = curve
-        self.index = index
+        self.curves = [p.original_xfield for p in plots]
+        self.indexes = [p.original_yfield for p in plots]
+        self.main_index = self._longest_index()
+        print "main_index = %s " % self.main_index
+        self.plots = plots
 
         self._setup_table()
         self._connect_table()
 
         self.changing_depth = False
-        self._setup_depth_slider(index.min(), index.max())
+        self._setup_depth_slider(self.main_index.min(), self.main_index.max())
 
-        track = SinglePlotTrack(Plot(self.curve, self.index), self)
-        track.add_change_callback(self.on_plot_change)
-
-        self.tracks.append(track)
-        self.layout.addWidget(track, 1, Qt.AlignLeft)
+        self.tracks = [SinglePlotTrack(p, self) for p in plots]
+        for track in self.tracks:
+            track.add_change_callback(self.on_plot_change)
+            self.layout.addWidget(track)
         self.updateGeometry()
-
-    def track(self):
-        return self.tracks[0]
 
     def center_on(self, ycoord):
         plot_canvas = self.track().plot_canvas
@@ -41,24 +40,48 @@ class CurveEditingPanel(AbstractTrackPanel):
         self.depth_slider.slider.setValue(increment)
 
     def _setup_table(self):
-        num_points = len(self.curve)
+        num_points = self._num_points()
         self.table = QTableWidget(num_points, 2, self)
         self.table.verticalHeader().setVisible(False)
         self.table.setHorizontalHeaderLabels(["depth","value"])
         self.layout.addWidget(self.table)
-        num_points = len(self.curve)
         last = None
+        main_index = self._longest_index()
         for i in range(0, num_points):
             val_idx = (num_points - 1) - i
-            depth = QTableWidgetItem(str(self.index[val_idx]))
-            value = QTableWidgetItem(str(self.curve[val_idx]))
+
+            depth = QTableWidgetItem(str(main_index[val_idx]))
             depth.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-            last = depth
             self.table.setItem(i, 0, depth)
-            self.table.setItem(i, 1, value)
+            last = depth
+
+            col = 1
+            for c in self.curves:
+                if i < len(c):
+                    value = QTableWidgetItem(str(c[val_idx]))
+                    self.table.setItem(i, col, value)
+                col += 1
+
         self.table.scrollToItem(last)
         QWidget.connect(self.table, SIGNAL("itemSelectionChanged()"),
                         self._hilite_selected_items)
+
+    def _num_points(self):
+        return len(self._longest_curve())
+
+    def _longest_curve(self):
+        longest = self.curves[0]
+        for c in self.curves:
+            if len(c) > len(longest):
+                longest = c
+        return longest
+
+    def _longest_index(self):
+        longest = self.indexes[0]
+        for i in self.indexes:
+            if len(i) > len(longest):
+                longest = i
+        return longest
             
     def on_plot_change(self, track, plot, idx):
         self._disconnect_table()
@@ -76,8 +99,9 @@ class CurveEditingPanel(AbstractTrackPanel):
         self.center_on(depth)
         track.repaint()
 
+    
     def _update_table(self, val_idx):
-        num_points = len(self.curve)
+        num_points = self._num_points()
         row = (num_points - 1) - val_idx
         value = QTableWidgetItem(str(self.curve[val_idx]))
         self.table.setItem(row,1,value)
@@ -95,16 +119,14 @@ class CurveEditingPanel(AbstractTrackPanel):
                            self.on_table_change)
         
 class CurveEditingWindow(QMainWindow):
-    def __init__(self, plot, parent = None):
+    def __init__(self, plots, parent = None):
         QMainWindow.__init__(self, parent)
-        self.plot = plot
+        self.plots = plots
         self.dirty = False
-        self.setWindowTitle(self.plot.name())
+        self.setWindowTitle(" ".join([p.name() for p in self.plots]))
         self._setup_menu()
         QApplication.processEvents()
-        self.editing_panel = CurveEditingPanel(self.plot.original_xfield,
-                                               self.plot.original_yfield,
-                                               self)
+        self.editing_panel = CurveEditingPanel(self.plots, self)
         self.setCentralWidget(self.editing_panel)
         self.updateGeometry()
 
