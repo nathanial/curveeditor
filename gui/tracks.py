@@ -6,8 +6,8 @@ from PyQt4.QtGui import QMainWindow, QMenu, QWidget,\
     QFileDialog, QSlider, QComboBox, QLayout, QPushButton,\
     QDialog, QRadioButton, QPalette, QGroupBox
 from PyQt4.QtCore import SIGNAL, QSize, QMutex
-from gui.gutil import minimum_size_policy, fixed_size_policy
-from gui.plots import *
+from gutil import minimum_size_policy, fixed_size_policy
+from plots import *
 from las.file import LasFile
 from dummy import *
 

@@ -6,7 +6,7 @@ from PyQt4.QtGui import QMainWindow, QMenu, QWidget,\
     QFileDialog, QSlider, QComboBox, QLayout, QPushButton,\
     QDialog, QRadioButton
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from gui.gutil import minimum_size_policy, fixed_size_policy
+from gutil import minimum_size_policy, fixed_size_policy
 from matplotlib.figure import Figure
 
 class DummyBox(QComboBox):

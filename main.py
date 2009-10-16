@@ -207,6 +207,9 @@ class MergeDialog(QDialog):
                 if tv.curve_source.name() in names]        
 
         
-        
-        
-        
+if __name__ == '__main__':
+    import sys
+    qapp = QApplication(sys.argv)
+    window = ApplicationWindow()
+    window.show()
+    qapp.exec_()

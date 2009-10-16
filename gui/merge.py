@@ -4,9 +4,9 @@ from PyQt4.QtCore import SIGNAL, QSize, QStringList
 from PyQt4.QtGui import QMainWindow, QMenu, QWidget, QHBoxLayout, QFileDialog, \
     QTabWidget, QListView, QDialog, QStringListModel, QListWidget, QListWidgetItem, \
     QVBoxLayout, QPushButton, QAbstractItemView, QLabel, QGroupBox
-from gui.gutil import minimum_size_policy, fixed_size_policy
-from gui.plots import *
-from gui.tracks import *
+from gutil import minimum_size_policy, fixed_size_policy
+from plots import *
+from tracks import *
 
 class MergePanel(AbstractTrackPanel):
     def __init__(self, curve_sources, parent = None): 

@@ -5,7 +5,7 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure, SubplotParams
 from matplotlib.lines import Line2D
 
-from gui.gutil import minimum_size_policy, fixed_size_policy
+from gutil import minimum_size_policy, fixed_size_policy
 from las.file import transform
 from util import *
 
